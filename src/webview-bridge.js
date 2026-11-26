@@ -13,27 +13,52 @@
   let nextId = 1
   const pending = new Map()
   const listeners = new Map()
+  const terminals = new Map()
+  let activeTerminal
 
-  function terminalForEvent(event) {
-    const element = event.target
-    return element && typeof element.closest === 'function' ? element.closest('.xterm') : null
+  function terminalForElement(element) {
+    const root = element && typeof element.closest === 'function' ? element.closest('.xterm') : null
+    return root ? terminals.get(root) : undefined
   }
 
   function onTerminalClipboardShortcut(event) {
-    if (event.type !== 'keydown' || !event.shiftKey || (!event.ctrlKey && !event.metaKey) || event.altKey || !terminalForEvent(event)) return
+    if (event.type !== 'keydown' || (!event.ctrlKey && !event.metaKey) || event.altKey) return
+    const terminal = terminalForElement(event.target)
+    if (!terminal) return
     const key = String(event.key).toLowerCase()
     if (key !== 'c' && key !== 'v') return
-    // Keep these OS clipboard shortcuts out of xterm's input encoder. The
-    // browser's trusted copy/paste event is still handled by xterm itself,
-    // including its internal selection and bracketed-paste mode.
+    if (key === 'c' && !terminal.hasSelection()) return
     event.stopImmediatePropagation()
-    if (key === 'c' && target.document?.execCommand) {
+    if (key === 'c') {
       event.preventDefault()
-      target.document.execCommand('copy')
+      target.document?.execCommand?.('copy')
     }
   }
 
   target.addEventListener('keydown', onTerminalClipboardShortcut, true)
+  target.addEventListener('focusin', (event) => {
+    activeTerminal = terminalForElement(event.target) || activeTerminal
+  }, true)
+  target.addEventListener('mousedown', (event) => {
+    activeTerminal = terminalForElement(event.target) || activeTerminal
+  }, true)
+  target.addEventListener('aio:terminal-register', (event) => {
+    const detail = event.detail
+    if (!detail || typeof detail.id !== 'string' || !detail.element
+      || typeof detail.hasSelection !== 'function' || typeof detail.getSelection !== 'function'
+      || typeof detail.isVisible !== 'function' || typeof detail.paste !== 'function'
+      || typeof detail.focus !== 'function') return
+    terminals.set(detail.element, detail)
+    activeTerminal = detail
+  })
+  target.addEventListener('aio:terminal-unregister', (event) => {
+    const id = event.detail?.id
+    for (const [element, terminal] of terminals) {
+      if (terminal.id !== id) continue
+      terminals.delete(element)
+      if (activeTerminal === terminal) activeTerminal = undefined
+    }
+  })
   target.addEventListener('aio:file-drop-request', (event) => {
     const detail = event.detail
     if (!detail || !Number.isSafeInteger(detail.id) || !Array.isArray(detail.candidates)) return
@@ -80,6 +105,23 @@
 
   target.addEventListener('message', ({ data }) => {
     if (!data || typeof data !== 'object') return
+    if (data.type === 'aio:terminal-copy-request' && Number.isSafeInteger(data.id)) {
+      vscode.postMessage({
+        type: 'aio:terminal-selection',
+        id: data.id,
+        available: activeTerminal?.isVisible() === true,
+        terminalId: activeTerminal?.isVisible() ? activeTerminal.id : undefined,
+        text: activeTerminal?.isVisible() && activeTerminal.hasSelection() ? activeTerminal.getSelection() : '',
+      })
+      return
+    }
+    if (data.type === 'aio:terminal-paste' && typeof data.terminalId === 'string' && typeof data.text === 'string') {
+      if (activeTerminal?.id === data.terminalId && activeTerminal.isVisible()) {
+        activeTerminal.paste(data.text)
+        activeTerminal.focus()
+      }
+      return
+    }
     if (data.type === 'aio:insert-file-references' && Number.isSafeInteger(data.id) && Array.isArray(data.references)) {
       target.dispatchEvent(new target.CustomEvent('aio:insert-file-references', {
         detail: { id: data.id, references: data.references },

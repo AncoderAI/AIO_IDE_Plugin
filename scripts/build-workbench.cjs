@@ -86,8 +86,38 @@ async function buildUi() {
         transform(source, id) {
           if (!id.replaceAll('\\', '/').endsWith('/src/components/TerminalDrawer.tsx')) return
           const constructor = 'const terminal = new Terminal({'
-          if (!source.includes(constructor)) throw new Error('AIO TerminalDrawer constructor changed')
-          return source.replace(constructor, constructor + '\n      minimumContrastRatio: 4.5,')
+          const open = 'terminal.open(container)'
+          const dispose = 'terminal.dispose()'
+          if (!source.includes(constructor) || !source.includes(open) || !source.includes(dispose)) {
+            throw new Error('AIO TerminalDrawer clipboard anchors changed')
+          }
+          const registered = `${open}
+    const terminalClipboardId = crypto.randomUUID()
+    const terminalElement = terminal.element
+    if (!terminalElement) throw new Error('AIO terminal element is unavailable')
+    terminalElement.setAttribute('data-vscode-context', JSON.stringify({
+      webviewSection: 'aioTerminal',
+      preventDefaultContextMenuItems: true,
+    }))
+    window.dispatchEvent(new CustomEvent('aio:terminal-register', {
+      detail: {
+        id: terminalClipboardId,
+        element: terminalElement,
+        hasSelection: () => terminal.hasSelection(),
+        getSelection: () => terminal.getSelection(),
+        isVisible: () => visibleRef.current && !terminalElement.closest('[hidden]'),
+        paste: (text: string) => terminal.paste(text),
+        focus: () => terminal.focus(),
+      },
+    }))`
+          const unregistered = `window.dispatchEvent(new CustomEvent('aio:terminal-unregister', {
+        detail: { id: terminalClipboardId },
+      }))
+      ${dispose}`
+          return source
+            .replace(constructor, constructor + '\n      minimumContrastRatio: 4.5,')
+            .replace(open, registered)
+            .replace(dispose, unregistered)
         },
       },
       react(),
@@ -133,6 +163,24 @@ async function buildUi() {
       },
     },
   })
+}
+
+function patchGeneratedTerminalClipboard() {
+  const chunks = readdirSync(join(uiOutput, 'assets')).filter((name) => /^TerminalDrawer-.*\.js$/.test(name))
+  if (chunks.length !== 1) throw new Error('Expected one generated TerminalDrawer chunk')
+  const chunk = join(uiOutput, 'assets', chunks[0])
+  const source = readFileSync(chunk, 'utf8')
+  const open = 'r.open(o),y.current=r,g.current=m;const u=r.textarea;'
+  const registeredV1 = 'r.open(o);const AIOClipboardId=crypto.randomUUID(),AIOClipboardElement=r.element;if(!AIOClipboardElement)throw new Error("AIO terminal element is unavailable");AIOClipboardElement.setAttribute("data-vscode-context",JSON.stringify({webviewSection:"aioTerminal",preventDefaultContextMenuItems:!0})),window.dispatchEvent(new CustomEvent("aio:terminal-register",{detail:{id:AIOClipboardId,element:AIOClipboardElement,hasSelection:()=>r.hasSelection(),getSelection:()=>r.getSelection(),paste:t=>r.paste(t),focus:()=>r.focus()}})),y.current=r,g.current=m;const u=r.textarea;'
+  const registered = 'r.open(o);const AIOClipboardId=crypto.randomUUID(),AIOClipboardElement=r.element;if(!AIOClipboardElement)throw new Error("AIO terminal element is unavailable");AIOClipboardElement.setAttribute("data-vscode-context",JSON.stringify({webviewSection:"aioTerminal",preventDefaultContextMenuItems:!0})),window.dispatchEvent(new CustomEvent("aio:terminal-register",{detail:{id:AIOClipboardId,element:AIOClipboardElement,hasSelection:()=>r.hasSelection(),getSelection:()=>r.getSelection(),isVisible:()=>E.current&&!AIOClipboardElement.closest("[hidden]"),paste:t=>r.paste(t),focus:()=>r.focus()}})),y.current=r,g.current=m;const u=r.textarea;'
+  const dispose = 'r.dispose(),y.current=null,g.current=null'
+  const unregister = 'window.dispatchEvent(new CustomEvent("aio:terminal-unregister",{detail:{id:AIOClipboardId}})),'
+  const unregistered = unregister + dispose
+  const withRegistration = source.includes(open) ? source.replace(open, registered) : source.replace(registeredV1, registered)
+  let withCleanup = withRegistration.includes(unregistered) ? withRegistration : withRegistration.replace(dispose, unregistered)
+  while (withCleanup.includes(unregister + unregister)) withCleanup = withCleanup.replace(unregister + unregister, unregister)
+  if (!withCleanup.includes(registered) || !withCleanup.includes(unregistered)) throw new Error('Generated TerminalDrawer clipboard anchors changed')
+  writeFileSync(chunk, withCleanup)
 }
 
 async function buildService() {
@@ -286,6 +334,10 @@ function writeManifest(dependencies) {
 
 async function main() {
   requireFile(join(sourceRoot, 'package.json'), 'AIO package')
+  if (process.argv.includes('--patch-terminal-clipboard')) {
+    patchGeneratedTerminalClipboard()
+    return
+  }
   mkdirSync(outputRoot, { recursive: true })
   rmSync(licenseOutput, { recursive: true, force: true })
   rmSync(join(outputRoot, 'resources'), { recursive: true, force: true })

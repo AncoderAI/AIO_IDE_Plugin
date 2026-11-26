@@ -64,7 +64,7 @@ async function main() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-webview-'));
   const project = path.join(root, 'project');
   const importedProject = path.join(root, '导入 项目');
-  const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1';
+  const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1' || process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1';
   await fs.mkdir(project);
   await fs.mkdir(importedProject);
   for (const file of ['first.txt', 'second.txt']) await fs.writeFile(path.join(project, file), file);
@@ -147,6 +147,9 @@ async function main() {
         }
         if (process.env.AIO_TEST_NATIVE_DROP === '1') {
           await require('./verify-native-drop.cjs').verifyNativeDrop(window, project);
+        }
+        if (process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1') {
+          console.log(await require('./verify-workbench-clipboard.cjs').verifyWorkbenchClipboard(window, frame, app, project, process.execPath));
         }
         if (process.env.AIO_TEST_FILE_DROP === '1' || process.env.AIO_TEST_NATIVE_DROP === '1') return;
         if (process.platform === 'win32') {

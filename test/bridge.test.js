@@ -2,11 +2,25 @@
 
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
+const fs = require('node:fs')
 const { PassThrough, Writable } = require('node:stream')
+const path = require('node:path')
 const test = require('node:test')
 
 const { createTauriBridge } = require('../src/webview-bridge')
 const { WorkbenchHost, WorkbenchService, externalNodeCandidates, renderWorkbenchHtml, resolveNodeRuntime, validWebviewRequest, versionAtLeast } = require('../src/workbench')
+
+test('generated xterm chunk exposes only the scoped clipboard capability', () => {
+  const assets = path.resolve(__dirname, '../workbench/ui/assets')
+  const chunk = fs.readdirSync(assets).find((name) => /^TerminalDrawer-.*\.js$/.test(name))
+  assert.ok(chunk)
+  const source = fs.readFileSync(path.join(assets, chunk), 'utf8')
+  assert.match(source, /data-vscode-context/)
+  assert.match(source, /webviewSection:"aioTerminal"/)
+  assert.match(source, /aio:terminal-register/)
+  assert.match(source, /aio:terminal-unregister/)
+  assert.match(source, /isVisible:/)
+})
 
 test('webview bridge correlates requests and forwards named events', async () => {
   const target = new EventEmitter()
@@ -28,10 +42,25 @@ test('webview bridge correlates requests and forwards named events', async () =>
 test('webview keeps terminal copy and paste shortcuts in the browser clipboard path', () => {
   const target = new EventEmitter()
   target.addEventListener = target.on.bind(target)
+  target.dispatchEvent = (event) => { target.emit(event.type, event); return true }
   let copies = 0
   target.document = { execCommand: (command) => { if (command === 'copy') copies++; return true } }
-  createTauriBridge({ postMessage() {} }, target)
+  const sent = []
+  createTauriBridge({ postMessage: (message) => sent.push(message) }, target)
   const xterm = { closest: (selector) => selector === '.xterm' ? xterm : null }
+  let selected = true
+  let pasted
+  let focused = false
+  target.emit('aio:terminal-register', {
+    detail: {
+      id: 'terminal-1', element: xterm,
+      hasSelection: () => selected,
+      getSelection: () => 'selected output',
+      isVisible: () => true,
+      paste: (text) => { pasted = text },
+      focus: () => { focused = true },
+    },
+  })
   const event = (key, extras = {}) => {
     const state = { stopped: false, prevented: false }
     target.emit('keydown', {
@@ -43,11 +72,31 @@ test('webview keeps terminal copy and paste shortcuts in the browser clipboard p
     return state
   }
 
-  assert.deepEqual(event('c'), { stopped: true, prevented: true })
+  assert.deepEqual(event('c', { shiftKey: false }), { stopped: true, prevented: true })
   assert.equal(copies, 1)
-  assert.deepEqual(event('v'), { stopped: true, prevented: false })
+  assert.deepEqual(event('v', { shiftKey: false }), { stopped: true, prevented: false })
+  selected = false
   assert.deepEqual(event('c', { shiftKey: false }), { stopped: false, prevented: false })
   assert.deepEqual(event('c', { target: { closest: () => null } }), { stopped: false, prevented: false })
+
+  target.emit('message', { data: { type: 'aio:terminal-copy-request', id: 7 } })
+  assert.deepEqual(sent.at(-1), { type: 'aio:terminal-selection', id: 7, available: true, terminalId: 'terminal-1', text: '' })
+  selected = true
+  target.emit('message', { data: { type: 'aio:terminal-copy-request', id: 8 } })
+  assert.deepEqual(sent.at(-1), { type: 'aio:terminal-selection', id: 8, available: true, terminalId: 'terminal-1', text: 'selected output' })
+  target.emit('message', { data: { type: 'aio:terminal-paste', terminalId: 'terminal-1', text: 'external text' } })
+  assert.equal(pasted, 'external text')
+  assert.equal(focused, true)
+  target.emit('aio:terminal-register', {
+    detail: {
+      id: 'terminal-2', element: { closest: () => null },
+      hasSelection: () => false, getSelection: () => '', isVisible: () => true,
+      paste: () => { throw new Error('wrong terminal') }, focus() {},
+    },
+  })
+  pasted = undefined
+  target.emit('message', { data: { type: 'aio:terminal-paste', terminalId: 'terminal-1', text: 'stale text' } })
+  assert.equal(pasted, undefined)
 })
 
 test('webview bridge routes project-directory drops and acknowledgements', () => {
@@ -164,6 +213,54 @@ test('concurrent opens share one panel creation', async () => {
   assert.equal(await first, panel)
   assert.equal(await second, panel)
   assert.equal(creations, 1)
+  host.dispose()
+})
+
+test('workbench clipboard commands require the active panel and a visible terminal', async () => {
+  const clipboard = { value: 'outside text', reads: 0, writes: [], deactivateOnRead: false }
+  const vscode = {
+    env: { clipboard: {
+      readText: async () => { clipboard.reads++; if (clipboard.deactivateOnRead) panel.active = false; return clipboard.value },
+      writeText: async (text) => { clipboard.writes.push(text) },
+    } },
+    window: { createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }) },
+  }
+  const host = new WorkbenchHost(vscode, {})
+  const messages = []
+  const service = {}
+  const panel = {
+    active: true,
+    webview: {
+      postMessage: async (message) => {
+        messages.push(message)
+        if (message.type === 'aio:terminal-copy-request') {
+          setImmediate(() => host.handleMessage({
+            type: 'aio:terminal-selection', id: message.id, available: true, terminalId: 'terminal-1', text: 'selected text',
+          }, panel, service))
+        }
+        return true
+      },
+    },
+  }
+  host.panel = panel
+  host.service = service
+
+  assert.equal(await host.copyTerminalSelection(), true)
+  assert.deepEqual(clipboard.writes, ['selected text'])
+  assert.equal(await host.pasteIntoTerminal(), true)
+  assert.equal(clipboard.reads, 1)
+  assert.deepEqual(messages.at(-1), { type: 'aio:terminal-paste', terminalId: 'terminal-1', text: 'outside text' })
+
+  clipboard.deactivateOnRead = true
+  const messageCount = messages.length
+  assert.equal(await host.pasteIntoTerminal(), false)
+  assert.equal(messages.length, messageCount + 1)
+  assert.equal(messages.at(-1).type, 'aio:terminal-copy-request')
+  panel.active = false
+  assert.equal(await host.pasteIntoTerminal(), false)
+  assert.equal(clipboard.reads, 2)
+  host.panel = undefined
+  host.service = undefined
   host.dispose()
 })
 

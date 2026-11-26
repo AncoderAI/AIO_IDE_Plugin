@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "AIO · AI CLI 工作台",
   "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -31,6 +31,8 @@
       { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" },
       { "command": "aio.copyTerminalSelection", "category": "AIO", "title": "复制终端选区", "icon": "$(copy)", "enablement": "aio.activeCliTerminal && terminalTextSelected" },
       { "command": "aio.pasteIntoTerminal", "category": "AIO", "title": "粘贴到终端", "icon": "$(clippy)", "enablement": "aio.activeCliTerminal" },
+      { "command": "aio.copyWorkbenchTerminalSelection", "category": "AIO", "title": "复制", "icon": "$(copy)" },
+      { "command": "aio.pasteIntoWorkbenchTerminal", "category": "AIO", "title": "粘贴", "icon": "$(clippy)" },
       { "command": "aio.referenceInWorkbench", "category": "AIO", "title": "在 AIO 对话中引用路径", "icon": "$(references)" },
         { "command": "aio.importProjectInWorkbench", "category": "AIO", "title": "在 AIO 中添加项目", "icon": "$(folder-library)" },
         { "command": "aio.openRegisteredProject", "category": "AIO", "title": "打开已登记项目" },
@@ -40,6 +42,10 @@
       "view/title": [
         { "command": "aio.copyTerminalSelection", "when": "view == terminal && aio.activeCliTerminal", "group": "navigation@1" },
         { "command": "aio.pasteIntoTerminal", "when": "view == terminal && aio.activeCliTerminal", "group": "navigation@2" }
+      ],
+      "webview/context": [
+        { "command": "aio.copyWorkbenchTerminalSelection", "when": "webviewId == 'aio.workbench' && webviewSection == 'aioTerminal'", "group": "1_cutcopypaste@1" },
+        { "command": "aio.pasteIntoWorkbenchTerminal", "when": "webviewId == 'aio.workbench' && webviewSection == 'aioTerminal'", "group": "1_cutcopypaste@2" }
       ],
       "commandPalette": [
         { "command": "aio.copyTerminalSelection", "when": "aio.activeCliTerminal" },

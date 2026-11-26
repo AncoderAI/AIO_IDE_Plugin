@@ -232,6 +232,8 @@ class WorkbenchHost {
     this.opening = undefined
     this.referenceSequence = 0
     this.referenceRequests = new Map()
+    this.terminalClipboardSequence = 0
+    this.terminalClipboardRequests = new Map()
     this.panelListeners = new Set()
     this.projectSwitch = undefined
     this.log = vscode.window.createOutputChannel('AIO 工作台')
@@ -247,6 +249,44 @@ class WorkbenchHost {
   }
 
   isOpen() { return Boolean(this.panel && this.service) }
+
+  async terminalClipboardState(panel = this.panel) {
+    if (!panel?.active || !this.service) return { available: false, text: '' }
+    const id = ++this.terminalClipboardSequence
+    const response = new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.terminalClipboardRequests.delete(id)
+        resolve({ available: false, text: '' })
+      }, 1000)
+      timer.unref?.()
+      this.terminalClipboardRequests.set(id, { resolve, timer })
+    })
+    if (!await panel.webview.postMessage({ type: 'aio:terminal-copy-request', id })) {
+      const request = this.terminalClipboardRequests.get(id)
+      if (request) {
+        this.terminalClipboardRequests.delete(id)
+        clearTimeout(request.timer)
+        request.resolve({ available: false, text: '' })
+      }
+    }
+    return response
+  }
+
+  async copyTerminalSelection() {
+    const state = await this.terminalClipboardState()
+    if (!state.available || !state.text) return false
+    await this.vscode.env.clipboard.writeText(state.text)
+    return true
+  }
+
+  async pasteIntoTerminal() {
+    const panel = this.panel
+    const state = await this.terminalClipboardState(panel)
+    if (!state.available || !state.terminalId || this.panel !== panel || !panel?.active) return false
+    const text = await this.vscode.env.clipboard.readText()
+    if (!text || this.panel !== panel || !panel.active) return false
+    return panel.webview.postMessage({ type: 'aio:terminal-paste', terminalId: state.terminalId, text })
+  }
 
   async insertDroppedCandidates(candidates) {
     if (!this.panel || !this.service) {
@@ -452,6 +492,18 @@ class WorkbenchHost {
       request.resolve(message.inserted === true)
       return
     }
+    if (message?.type === 'aio:terminal-selection' && Number.isSafeInteger(message.id)) {
+      const request = this.terminalClipboardRequests.get(message.id)
+      if (!request) return
+      this.terminalClipboardRequests.delete(message.id)
+      clearTimeout(request.timer)
+      request.resolve({
+        available: message.available === true,
+        terminalId: typeof message.terminalId === 'string' ? message.terminalId : undefined,
+        text: typeof message.text === 'string' ? message.text : '',
+      })
+      return
+    }
     if (validFileDropRequest(message)) {
       if (message.type === 'aio:project-drop') {
         try {
@@ -550,6 +602,11 @@ class WorkbenchHost {
       request.resolve(false)
     }
     this.referenceRequests.clear()
+    for (const request of this.terminalClipboardRequests.values()) {
+      clearTimeout(request.timer)
+      request.resolve({ available: false, text: '' })
+    }
+    this.terminalClipboardRequests.clear()
     const service = this.service
     this.service = undefined
     service?.stop()
@@ -569,6 +626,8 @@ function registerWorkbench(vscode, context, options) {
     vscode.commands.registerCommand('aio.openWorkbench', (resource) => host.open(resource).catch((error) => vscode.window.showErrorMessage(errorMessage(error)))),
     vscode.commands.registerCommand('aio.openRegisteredProject', (projectPath) => host.activateProjectPath(projectPath)
       .catch((error) => vscode.window.showErrorMessage(errorMessage(error)))),
+    vscode.commands.registerCommand('aio.copyWorkbenchTerminalSelection', () => host.copyTerminalSelection()),
+    vscode.commands.registerCommand('aio.pasteIntoWorkbenchTerminal', () => host.pasteIntoTerminal()),
     host,
   )
   return host
