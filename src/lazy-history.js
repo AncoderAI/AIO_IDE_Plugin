@@ -16,13 +16,31 @@ function key(value) {
   return process.platform === 'win32' ? normalized.toLowerCase() : normalized
 }
 
-function parseHeader(buffer) {
+function compactTitle(value) {
+  return typeof value === 'string' ? Array.from(value.replace(/[\p{Cc}\p{Cf}\s]+/gu, ' ').trim()).slice(0, 100).join('') : ''
+}
+
+function userText(message) {
+  if (typeof message?.content === 'string') return compactTitle(message.content)
+  if (!Array.isArray(message?.content)) return ''
+  return compactTitle(message.content.filter(block => block?.type === 'text').map(block => block.text).join(' '))
+}
+
+function parseSessionPreview(buffer) {
+  let header
+  let title
   for (const line of buffer.toString('utf8').split(/\r?\n/)) {
     try {
       const row = JSON.parse(line)
-      if (row.type === 'session' || (typeof row.cwd === 'string' && typeof row.sessionId === 'string')) return row
+      if (!header && (row.type === 'session' || (typeof row.cwd === 'string' && typeof row.sessionId === 'string'))) header = row
+      if (!row.isMeta && !row.isSidechain && !row.isSynthetic && (row.type === 'user' ||
+          (row.type === 'message' && row.message?.role === 'user'))) {
+        title ||= userText(row.message)
+      }
+      if (header && title) break
     } catch { /* Incomplete metadata record. */ }
   }
+  return { header, title }
 }
 
 function codexRows(filename, cwd) {
@@ -30,7 +48,11 @@ function codexRows(filename, cwd) {
   const db = new DatabaseSync(filename, { readOnly: true })
   try {
     const caseInsensitive = process.platform === 'win32' ? ' COLLATE NOCASE' : ''
-    return db.prepare('SELECT id, title, updated_at AS updatedAt FROM threads WHERE cwd = ?' +
+    const columns = db.prepare('PRAGMA table_info(threads)').all()
+    const title = columns.some(column => column.name === 'first_user_message')
+      ? "COALESCE(NULLIF(TRIM(first_user_message), ''), title)"
+      : 'title'
+    return db.prepare('SELECT id, ' + title + ' AS title, updated_at AS updatedAt FROM threads WHERE cwd = ?' +
       caseInsensitive + ' AND archived = 0 ORDER BY updated_at DESC LIMIT 100').all(cwd)
   } finally {
     db.close()
@@ -70,7 +92,7 @@ class LazyHistory {
     record('index')
     return (await this.queryCodex(path.join(root, indexes[0]), cwd))
       .filter(row => sessionId.test(row.id))
-      .map(row => ({ ...row, title: String(row.title || row.id).slice(0, 100), updatedAt: row.updatedAt * 1000 }))
+      .map(row => ({ ...row, title: compactTitle(row.title) || row.id, updatedAt: row.updatedAt * 1000 }))
   }
 
   async listFiles(cwd, provider, record, additionalBuckets) {
@@ -97,16 +119,17 @@ class LazyHistory {
         if (!info.isFile()) continue
         record('metadata')
         const handle = await this.io.open(filename, 'r')
-        let header
+        let preview
         try {
           const buffer = Buffer.alloc(readLimit)
           const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
-          header = parseHeader(buffer.subarray(0, bytesRead))
+          preview = parseSessionPreview(buffer.subarray(0, bytesRead))
         } finally { await handle.close() }
+        const { header, title } = preview
         if (!header || typeof header.cwd !== 'string' || key(header.cwd) !== key(cwd)) continue
         const id = omp ? header.id : header.sessionId
         if (!sessionId.test(id || '') || rows.some(row => row.id === id)) continue
-        rows.push({ id, filename, title: id, updatedAt: info.mtimeMs })
+        rows.push({ id, filename, title: title || id, updatedAt: info.mtimeMs })
       }
     }
     return rows.sort((left, right) => right.updatedAt - left.updatedAt)

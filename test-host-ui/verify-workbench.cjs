@@ -78,6 +78,7 @@ async function main() {
       for (const cli of ['omp', 'claude', 'codex']) {
         const shim = path.join(root, cli + '.cmd');
         const commands = ['@echo off', 'chcp 65001 >nul'];
+        if (process.env.AIO_TEST_LAZY_HISTORY === '1' && cli === 'codex') commands.push('> codex-resume.args echo %~1 %~2');
         if (clipboardTest && cli === 'omp') commands.push(
           'for /L %%i in (1,1,80) do echo AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY',
           `> "${path.join(project, cli + '.ready')}" echo ready`,
@@ -97,9 +98,9 @@ async function main() {
       env.CODEX_HOME = path.join(root, 'codex-fixture');
       await fs.mkdir(env.CODEX_HOME);
       const database = new DatabaseSync(path.join(env.CODEX_HOME, 'state_5.sqlite'));
-      database.exec('CREATE TABLE threads (id TEXT, title TEXT, updated_at INTEGER, cwd TEXT, archived INTEGER)');
-      database.prepare('INSERT INTO threads VALUES (?, ?, 1, ?, 0)').run(
-        '11111111-1111-4111-8111-111111111111', 'AIO CODEX HISTORY FIXTURE', await fs.realpath(project));
+      database.exec('CREATE TABLE threads (id TEXT, title TEXT, updated_at INTEGER, cwd TEXT, archived INTEGER, first_user_message TEXT)');
+      database.prepare('INSERT INTO threads VALUES (?, ?, 1, ?, 0, ?)').run(
+        '11111111-1111-4111-8111-111111111111', 'generated title', await fs.realpath(project), 'AIO CODEX HISTORY FIXTURE');
       database.close();
     }
     const profileArgs = ['--user-data-dir=' + path.join(root, 'profile'), '--extensions-dir=' + path.join(root, 'extensions')];
@@ -168,10 +169,16 @@ async function main() {
           assert.equal(await entries.count(), 3);
           assert.equal(await frame.getByText('AIO CODEX HISTORY FIXTURE', { exact: true }).count(), 0);
           await frame.getByRole('button', { name: 'Codex · 加载历史会话', exact: true }).click();
-          await frame.getByRole('button', { name: 'AIO CODEX HISTORY FIXTURE', exact: true }).waitFor();
+          const session = frame.getByRole('button', { name: 'AIO CODEX HISTORY FIXTURE', exact: true });
+          await session.waitFor();
           assert.equal(await frame.locator('[data-provider="omp"] .aio-history-results').innerText(), '');
           assert.equal(await frame.locator('[data-provider="claude"] .aio-history-results').innerText(), '');
-          console.log('AIO exposes three history controls and loads the selected Codex index on demand');
+          const receipt = path.join(project, 'codex-resume.args');
+          assert.equal(await fs.stat(receipt).catch(() => null), null);
+          await session.click();
+          await waitForFile(receipt);
+          assert.equal((await fs.readFile(receipt, 'utf8')).trim(), 'resume 11111111-1111-4111-8111-111111111111');
+          console.log('Three lazy history controls, first-input label, and explicit CLI resume verified');
           return;
         }
         if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
