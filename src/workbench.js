@@ -194,7 +194,7 @@ function nonce() {
   return randomBytes(24).toString('base64url')
 }
 
-function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri) {
+function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri) {
   const token = nonce()
   const base = String(uiUri).replace(/\/?$/, '/')
   const csp = [
@@ -209,7 +209,7 @@ function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri) {
     "form-action 'none'",
   ].join('; ')
   let result = html.replace(/<meta\s+http-equiv=["']Content-Security-Policy["'][^>]*>\s*/gi, '')
-  result = result.replace(/<head(\s[^>]*)?>/i, (head) => `${head}\n<meta http-equiv="Content-Security-Policy" content="${csp}">\n<base href="${base}">\n<script nonce="${token}" src="${bridgeUri}"></script>${fileDropUri ? `\n<script nonce="${token}" src="${fileDropUri}"></script>` : ''}`)
+  result = result.replace(/<head(\s[^>]*)?>/i, (head) => `${head}\n<meta http-equiv="Content-Security-Policy" content="${csp}">\n<base href="${base}">${panelStyleUri ? `\n<link rel="stylesheet" href="${panelStyleUri}">` : ''}\n<script nonce="${token}" src="${bridgeUri}"></script>${fileDropUri ? `\n<script nonce="${token}" src="${fileDropUri}"></script>` : ''}${panelScriptUri ? `\n<script nonce="${token}" src="${panelScriptUri}"></script>` : ''}`)
   result = result.replace(/<script\b(?![^>]*\bnonce=)/gi, `<script nonce="${token}"`)
   return result
 }
@@ -458,9 +458,11 @@ class WorkbenchHost {
       const uiUri = panel.webview.asWebviewUri(this.vscode.Uri.file(uiRoot))
       const bridgeUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'webview-bridge.js'))))
       const fileDropUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'file-drop.js'))))
+      const panelScriptUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.js'))))
+      const panelStyleUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.css'))))
       const source = await fs.promises.readFile(indexPath, 'utf8')
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
-      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri)
+      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri)
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => { void this.handleMessage(message, panel, service) })
       this.disposables.push(messageDisposable)
       return panel

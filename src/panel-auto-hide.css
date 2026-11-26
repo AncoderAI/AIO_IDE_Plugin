@@ -1,0 +1,86 @@
+.app-shell.aio-auto-hide-panels > .sidebar,
+.app-shell.aio-auto-hide-panels .inspector {
+  position: fixed !important;
+  z-index: 80 !important;
+  margin: 0 !important;
+  transition: transform 150ms ease-out, opacity 120ms ease-out, visibility 0s linear 150ms;
+  opacity: 1;
+  visibility: visible;
+}
+
+.app-shell.aio-auto-hide-panels > .sidebar {
+  inset: 0 auto 0 0 !important;
+  width: min(280px, calc(100vw - 20px)) !important;
+  height: 100% !important;
+  flex: none !important;
+  box-shadow: 12px 0 30px color-mix(in srgb, #000 18%, transparent);
+  background: color-mix(in srgb, var(--sidebar) 88%, transparent) !important;
+  backdrop-filter: blur(16px);
+}
+
+.app-shell.aio-auto-hide-panels .inspector {
+  inset: 52px 0 0 auto !important;
+  width: min(var(--inspector-width, 520px), calc(100vw - 20px)) !important;
+  min-width: 0 !important;
+  height: auto !important;
+  flex: none !important;
+  box-shadow: -12px 0 30px color-mix(in srgb, #000 18%, transparent);
+  background: color-mix(in srgb, var(--canvas) 88%, transparent) !important;
+  backdrop-filter: blur(16px);
+}
+
+.app-shell.aio-auto-hide-panels > .sidebar.aio-panel-hidden {
+  transform: translateX(calc(-100% - 16px));
+}
+
+.app-shell.aio-auto-hide-panels .inspector.aio-panel-hidden {
+  transform: translateX(calc(100% + 16px));
+}
+
+.app-shell.aio-auto-hide-panels .aio-panel-hidden {
+  opacity: 0;
+  background: transparent !important;
+  backdrop-filter: none;
+  visibility: hidden;
+  pointer-events: none;
+  transition-delay: 0s, 0s, 150ms;
+}
+
+.aio-panel-edge {
+  position: fixed;
+  z-index: 70;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.aio-panel-edge--left { left: 0; }
+.aio-panel-edge--right { right: 0; }
+.aio-panel-edge:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.app-shell.aio-auto-hide-panels .panel-scrim {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 760px) {
+  .app-shell.aio-auto-hide-panels .inspector {
+    top: 52px !important;
+    left: auto !important;
+    width: min(520px, calc(100vw - 32px)) !important;
+    max-width: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.aio-auto-hide-panels > .sidebar,
+  .app-shell.aio-auto-hide-panels .inspector { transition: none; }
+}

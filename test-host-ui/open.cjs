@@ -1,6 +1,15 @@
 'use strict';
 const vscode = require('vscode');
 exports.run = async function () {
+  if (process.env.AIO_TEST_AUTO_PANELS === '1') {
+    const fs = require('node:fs/promises');
+    const path = require('node:path');
+    const trigger = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, '.aio-open-panels-now');
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline && !(await fs.stat(trigger).catch(() => null))) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
   await vscode.commands.executeCommand('aio.openWorkbench', vscode.workspace.workspaceFolders[0].uri);
   if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
     const fs = require('node:fs/promises');

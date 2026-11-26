@@ -112,8 +112,8 @@ async function main() {
     });
     const window = await app.firstWindow();
     const aioTab = window.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i });
-    await aioTab.click();
     const sidebar = window.locator('.part.sidebar');
+    await aioTab.click();
     for (const label of ['OMP', 'Claude Code', 'Codex', '完整工作台']) {
       await sidebar.getByText(label, { exact: true }).waitFor({ state: 'visible' });
     }
@@ -121,12 +121,17 @@ async function main() {
     window.on('pageerror', (error) => errors.push(error.message));
     window.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text().slice(0, 300)); });
     const deadline = Date.now() + 75000;
+    if (process.env.AIO_TEST_AUTO_PANELS === '1') await fs.writeFile(path.join(project, '.aio-open-panels-now'), '');
     while (Date.now() < deadline) {
       for (const frame of window.frames()) {
         const ready = await frame.evaluate(() =>
           Boolean(window.__TAURI__ && document.querySelector('#root button') && document.querySelector('#root')?.innerText.trim())
         ).catch(() => false);
         if (!ready) continue;
+        if (process.env.AIO_TEST_AUTO_PANELS === '1') {
+          console.log(await require('./verify-auto-panels.cjs').verifyAutoPanels(window, frame, app));
+          return;
+        }
         await frame.waitForFunction(() => document.documentElement.dataset.theme === 'dark', undefined, { timeout: 10000 });
         const report = await frame.evaluate(async () => {
           const invoke = (channel, ...args) => window.__TAURI__.core.invoke('desktop_request', { channel, args });

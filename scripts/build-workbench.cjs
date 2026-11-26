@@ -88,8 +88,14 @@ async function buildUi() {
           if (normalized.endsWith('/src/App.tsx')) {
             const keyboard = 'if (!terminalOpen || event.defaultPrevented || event.isComposing || isOverlayOpen()) return'
             if (!source.includes(keyboard)) throw new Error('AIO App terminal keyboard anchor changed')
-            return source.replace(keyboard,
+            let transformed = source.replace(keyboard,
               'if (!terminalOpen || !terminalOwnsKeyboard.current || event.defaultPrevented || event.isComposing || isOverlayOpen()) return')
+            const legacyPanels = 'const sidebarVisible = settingsState.sidebarOpen && !layout.sidebarSuppressed\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen && !layout.inspectorSuppressed'
+            if (transformed.includes(legacyPanels)) {
+              transformed = transformed.replace(legacyPanels,
+                'const sidebarVisible = true\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen')
+            }
+            return transformed
           }
           if (!normalized.endsWith('/src/components/TerminalDrawer.tsx')) return
           const constructor = 'const terminal = new Terminal({'
@@ -211,8 +217,13 @@ function patchGeneratedTerminalClipboard() {
   const keyboard = 'Hn=rs(u=>{!Ne||u.defaultPrevented'
   const ownedKeyboard = 'Hn=rs(u=>{!Ne||!Ge.current||u.defaultPrevented'
   const routed = mainSource.includes(ownedKeyboard) ? mainSource : mainSource.replace(keyboard, ownedKeyboard)
-  if (!routed.includes(ownedKeyboard)) throw new Error('Generated AIO keyboard routing anchor changed')
-  writeFileSync(mainChunk, routed)
+  const legacyPanels = 'bt=te.sidebarOpen&&!He.sidebarSuppressed,Rt=te.inspectorOpen&&!He.inspectorSuppressed'
+  const floatingPanels = 'bt=!0,Rt=te.inspectorOpen'
+  const panels = routed.includes(floatingPanels) ? routed : routed.replace(legacyPanels, floatingPanels)
+  if (!panels.includes(ownedKeyboard) || !panels.includes(floatingPanels)) {
+    throw new Error('Generated AIO keyboard or panel routing anchor changed')
+  }
+  writeFileSync(mainChunk, panels)
 }
 
 async function buildService() {
