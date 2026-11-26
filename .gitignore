@@ -1,3 +1,4 @@
 .omx/
 /node_modules/
-dist/
+/dist/*
+!/dist/aio-ide.vsix

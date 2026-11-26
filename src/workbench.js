@@ -343,6 +343,14 @@ class WorkbenchHost {
       args = [folder]
     }
     if (!service) throw new Error('AIO 工作台服务不可用')
+    if (channel === 'projects:list-worktrees') {
+      try {
+        return await service.request(channel, args)
+      } catch (error) {
+        if (/Git repository root inspection failed: fatal: not a git repository/i.test(errorMessage(error))) return []
+        throw error
+      }
+    }
     return service.request(channel, args)
   }
 
