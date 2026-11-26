@@ -27,6 +27,8 @@
     let rightVisible = false
     let leftInside = false
     let rightInside = false
+    let pointerX = -1
+    let pointerY = -1
     let leftKeyboardInside = false
     let rightKeyboardInside = false
     let keyboardNavigation = false
@@ -36,22 +38,25 @@
     let introElapsed = false
     let introTimer
     const wired = new WeakSet()
+    const wiredToggles = new WeakSet()
     const mountRequested = new Set()
     let sidebarWasMounted = false
     let inspectorWasMounted = false
     let pagePinned = false
     let previewReady = false
 
-    const edge = (side) => {
+    const createLeftToggle = () => {
       const button = document.createElement('button')
       button.type = 'button'
-      button.className = 'aio-panel-edge aio-panel-edge--' + side
-      button.setAttribute('aria-label', side === 'left' ? '显示左侧栏' : '显示右侧栏')
-      button.dataset.aioPanelEdge = side
+      button.className = 'icon-button icon-button--regular aio-panel-toggle-left'
+      button.setAttribute('aria-label', '显示左侧栏')
+      button.title = '显示左侧栏'
+      button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>'
       return button
     }
-    const leftEdge = edge('left')
-    const rightEdge = edge('right')
+    const leftToggle = createLeftToggle()
+    let rightToggle
+    let internalToggleClick = false
     const previewEdge = document.createElement('button')
     previewEdge.type = 'button'
     previewEdge.className = 'aio-file-preview-edge'
@@ -61,6 +66,7 @@
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
     previewEdge.addEventListener('pointerenter', requestFilePreview)
     previewEdge.addEventListener('focus', requestFilePreview)
+    previewEdge.addEventListener('click', requestFilePreview)
     const onPreviewState = ({ data }) => {
       if (data?.type === 'aio:file-preview-state') previewEdge.hidden = !data.collapsed
     }
@@ -71,13 +77,25 @@
       panel.classList.toggle('aio-panel-hidden', !visible)
       if (panel.inert !== !visible) panel.inert = !visible
       if (panel.getAttribute('aria-hidden') !== String(!visible)) panel.setAttribute('aria-hidden', String(!visible))
+      const toggle = panel === sidebar ? leftToggle : panel === inspector ? rightToggle : undefined
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(visible))
+        toggle.classList.toggle('is-active', visible)
+      }
+    }
+
+    const pointInside = (panel) => {
+      if (!panel || panel.classList.contains('aio-panel-hidden')) return false
+      const rect = panel.getBoundingClientRect()
+      return pointerX >= rect.left && pointerX <= rect.right
+        && pointerY >= rect.top && pointerY <= rect.bottom
     }
 
     const toolbarToggle = (side) => {
       if (!app) return
-      if (side === 'left') return app.querySelector('.title-toolbar__nav button')
+      if (side === 'left') return app.querySelector('.title-toolbar__nav button:not(.aio-panel-toggle-left)')
       const actions = app.querySelectorAll('.title-toolbar__actions button')
-      return actions.length > 1 ? actions[actions.length - 1] : undefined
+      return actions.length > 1 ? actions[1] : undefined
     }
 
     const requestPanel = (side) => {
@@ -89,7 +107,8 @@
       const focused = document.activeElement
       const generation = interactionGeneration
       pendingFocusRestore = { focused, generation, expires: Date.now() + 500 }
-      toggle.click()
+      internalToggleClick = true
+      try { toggle.click() } finally { internalToggleClick = false }
       if (document.activeElement === toggle) {
         if (focused && focused !== document.body && typeof focused.focus === 'function') focused.focus({ preventScroll: true })
         else toggle.blur()
@@ -114,18 +133,32 @@
       const mounted = side === 'left' ? sidebar : inspector
       if (!mounted) requestPanel(side)
       const alreadyVisible = side === 'left' ? leftVisible : rightVisible
+      const focused = document.activeElement
+      const generation = interactionGeneration
       if (side === 'left') leftVisible = true
       else rightVisible = true
       if (alreadyVisible && mounted) return
       refresh()
+      if (mounted) {
+        root.setTimeout(() => {
+          if (generation !== interactionGeneration) return
+          const panel = side === 'left' ? sidebar : inspector
+          if (!panel?.contains(document.activeElement) || document.activeElement === focused) return
+          if (focused && focused !== document.body && focused.isConnected && typeof focused.focus === 'function') {
+            if (document.hasFocus?.() !== false) focused.focus({ preventScroll: true })
+          } else {
+            document.activeElement.blur?.()
+          }
+        }, 0)
+      }
     }
 
     const hide = (side) => {
       if (side === 'left') {
-        if (pagePinned || !introElapsed || leftInside || leftKeyboardInside) return
+        if (pagePinned || !introElapsed || leftInside || pointInside(sidebar) || leftKeyboardInside) return
         leftVisible = false
       } else {
-        if (rightInside || rightKeyboardInside) return
+        if (rightInside || pointInside(inspector) || rightKeyboardInside) return
         rightVisible = false
       }
       refresh()
@@ -140,7 +173,7 @@
         show(side)
       })
       panel.addEventListener('pointerleave', (event) => {
-        if (event.relatedTarget === (side === 'left' ? leftEdge : rightEdge)) return
+        if (event.relatedTarget === (side === 'left' ? leftToggle : rightToggle)) return
         if (side === 'left') leftInside = false
         else rightInside = false
         root.setTimeout(() => hide(side), 0)
@@ -156,13 +189,71 @@
       })
     }
 
+    const wireToggle = (button, side) => {
+      if (!button || wiredToggles.has(button)) return
+      wiredToggles.add(button)
+      button.addEventListener('pointerenter', () => {
+        if (side !== 'right' || button === rightToggle) show(side)
+      })
+      button.addEventListener('focus', () => {
+        if (side === 'right' && button !== rightToggle) return
+        if (keyboardNavigation) {
+          if (side === 'left') leftKeyboardInside = true
+          else rightKeyboardInside = true
+        }
+        show(side)
+      })
+      button.addEventListener('click', (event) => {
+        if (side === 'right' && button !== rightToggle) return
+        if (internalToggleClick) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        show(side)
+      }, true)
+      button.addEventListener('pointerleave', () => {
+        const generation = interactionGeneration
+        root.setTimeout(() => {
+          if (!button.isConnected) return
+          if (side === 'right' && button !== rightToggle) return
+          const panel = side === 'left' ? sidebar : inspector
+          if (generation !== interactionGeneration || button.matches(':hover') || panel?.matches(':hover')) return
+          hide(side)
+        }, 320)
+      })
+      button.addEventListener('blur', (event) => {
+        const panel = side === 'left' ? sidebar : inspector
+        if (panel?.contains(event.relatedTarget)) return
+        if (side === 'left') leftKeyboardInside = false
+        else rightKeyboardInside = false
+        root.setTimeout(() => hide(side), 0)
+      })
+    }
+
+    const ensureToolbarToggles = () => {
+      const nav = app?.querySelector('.title-toolbar__nav')
+      if (nav && !leftToggle.isConnected) nav.prepend(leftToggle)
+      if (nav && !previewEdge.isConnected) nav.append(previewEdge)
+      wireToggle(leftToggle, 'left')
+      const actions = app?.querySelectorAll('.title-toolbar__actions button')
+      const candidate = actions && actions.length > 1 ? actions[1] : undefined
+      const inspectorIcon = candidate?.querySelector('path[d*="15 3v18"]')
+      const sessionView = !app?.querySelector('.workbench-page')
+      if (candidate && sessionView && inspectorIcon && !candidate.classList.contains('aio-close-subpage')) {
+        if (rightToggle && rightToggle !== candidate) rightToggle.classList.remove('aio-panel-toggle-right')
+        rightToggle = candidate
+        rightToggle.classList.add('aio-panel-toggle-right')
+        wireToggle(rightToggle, 'right')
+      } else if (rightToggle) {
+        rightToggle.classList.remove('aio-panel-toggle-right')
+        rightToggle = undefined
+      }
+    }
+
     function refresh() {
       app = document.querySelector('.app-shell')
       if (!app) return
       app.classList.add('aio-auto-hide-panels')
-      if (!leftEdge.isConnected) app.append(leftEdge)
-      if (!rightEdge.isConnected) app.append(rightEdge)
-      if (!previewEdge.isConnected) app.append(previewEdge)
+      ensureToolbarToggles()
       if (!previewReady) {
         previewReady = true
         root.dispatchEvent(new root.CustomEvent('aio:file-preview-ready'))
@@ -197,7 +288,7 @@
       if (sidebar && !introTimer) {
         introTimer = root.setTimeout(() => {
           introElapsed = true
-          if (!leftInside && !leftKeyboardInside) {
+          if (!leftInside && !sidebar?.matches(':hover') && !leftKeyboardInside) {
             leftVisible = false
             refresh()
           }
@@ -205,53 +296,32 @@
       }
     }
 
-    for (const [trigger, side] of [[leftEdge, 'left'], [rightEdge, 'right']]) {
-      trigger.addEventListener('focus', () => {
-        if (keyboardNavigation) {
-          if (side === 'left') leftKeyboardInside = true
-          else rightKeyboardInside = true
-        }
-        show(side)
-      })
-      trigger.addEventListener('blur', (event) => {
-        const panel = side === 'left' ? sidebar : inspector
-        if (panel?.contains(event.relatedTarget)) return
-        if (side === 'left') leftKeyboardInside = false
-        else rightKeyboardInside = false
-        root.setTimeout(() => hide(side), 0)
-      })
-    }
-
     root.addEventListener('pointermove', (event) => {
+      pointerX = event.clientX
+      pointerY = event.clientY
       const ordinaryAio = !event.target?.closest?.('.aio-file-preview-edge')
       if (ordinaryAio !== pointerInOrdinaryAio) {
         pointerInOrdinaryAio = ordinaryAio
         if (ordinaryAio) root.dispatchEvent(new root.CustomEvent('aio:file-preview-aio-enter'))
       }
-      const containsPoint = (panel) => {
-        if (!panel || panel.classList.contains('aio-panel-hidden')) return false
-        const rect = panel.getBoundingClientRect()
-        return event.clientX >= rect.left && event.clientX <= rect.right
-          && event.clientY >= rect.top && event.clientY <= rect.bottom
-      }
-      leftInside = containsPoint(sidebar)
-      rightInside = containsPoint(inspector)
+      leftInside = pointInside(sidebar)
+      rightInside = pointInside(inspector)
       const protectedTarget = event.target?.closest?.(PROTECTED_REVEAL)
         || shouldSuppressEdgeReveal(document.elementsFromPoint?.(event.clientX, event.clientY))
       if (protectedTarget) {
-        leftEdge.style.pointerEvents = 'none'
-        rightEdge.style.pointerEvents = 'none'
         let changed = false
         if (introElapsed && leftVisible && !leftInside) { leftVisible = false; changed = true }
         if (rightVisible && !rightInside) { rightVisible = false; changed = true }
         if (changed) refresh()
         return
       }
-      if (event.clientX <= 7) show('left')
-      else if (event.clientX >= root.innerWidth - 7) show('right')
-      else {
-        if (!sidebar?.matches(':hover')) hide('left')
-        if (!inspector?.matches(':hover')) hide('right')
+      if (leftVisible || rightVisible) {
+        root.setTimeout(() => {
+          leftInside = pointInside(sidebar)
+          rightInside = pointInside(inspector)
+          if (leftVisible && !leftInside && !leftToggle.matches(':hover')) hide('left')
+          if (rightVisible && !rightInside && !rightToggle?.matches(':hover')) hide('right')
+        }, 320)
       }
     }, true)
     root.addEventListener('dragover', (event) => {
@@ -303,8 +373,8 @@
     return () => {
       observer.disconnect()
       if (introTimer) root.clearTimeout(introTimer)
-      leftEdge.remove()
-      rightEdge.remove()
+      leftToggle.remove()
+      rightToggle?.classList.remove('aio-panel-toggle-right')
       previewEdge.remove()
       root.removeEventListener('message', onPreviewState)
       sidebar?.classList.remove('aio-panel-hidden')

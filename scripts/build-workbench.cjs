@@ -93,7 +93,7 @@ async function buildUi() {
             const legacyPanels = 'const sidebarVisible = settingsState.sidebarOpen && !layout.sidebarSuppressed\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen && !layout.inspectorSuppressed'
             if (transformed.includes(legacyPanels)) {
               transformed = transformed.replace(legacyPanels,
-                'const sidebarVisible = true\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen')
+                'const sidebarVisible = true\n  const inspectorVisible = view === \'session\'')
             }
             const legacyView = "const [view, setView] = useState<WorkspaceView>('session')"
             if (transformed.includes(legacyView)) {
@@ -270,8 +270,11 @@ function patchGeneratedTerminalClipboard() {
   const routed = mainSource.includes(ownedKeyboard) || mainSource.includes(ownedVisibleKeyboard)
     ? mainSource : mainSource.replace(keyboard, ownedKeyboard)
   const legacyPanels = 'bt=te.sidebarOpen&&!He.sidebarSuppressed,Rt=te.inspectorOpen&&!He.inspectorSuppressed'
-  const floatingPanels = 'bt=!0,Rt=te.inspectorOpen'
-  const panels = routed.includes(floatingPanels) ? routed : routed.replace(legacyPanels, floatingPanels)
+  const previousFloatingPanels = 'bt=!0,Rt=te.inspectorOpen'
+  const floatingPanels = 'bt=!0,Rt=Y==="session"'
+  const panels = routed.includes(floatingPanels) ? routed
+    : routed.includes(previousFloatingPanels) ? routed.replace(previousFloatingPanels, floatingPanels)
+      : routed.replace(legacyPanels, floatingPanels)
   const legacyView = '[Y,V]=r.useState("session"),[J,ne]'
   const stackedView = '[AIOPageHistory,AIOSetPageHistory]=r.useState([]),Y=AIOPageHistory.at(-1)??"session",V=r.useCallback(u=>{AIOSetPageHistory(T=>u==="session"?T.length?[]:T:T.at(-1)===u?T:[...T,u])},[]),AIOClosePage=r.useCallback(()=>AIOSetPageHistory(u=>u.slice(0,-1)),[]),[J,ne]'
   let pages = panels.includes(stackedView) ? panels : panels.replace(legacyView, stackedView)

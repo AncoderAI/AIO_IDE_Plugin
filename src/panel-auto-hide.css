@@ -3,7 +3,7 @@
   position: fixed !important;
   z-index: 80 !important;
   margin: 0 !important;
-  transition: transform 150ms ease-out, opacity 120ms ease-out, visibility 0s linear 150ms;
+  transition: transform 300ms ease-out, opacity 300ms ease-out, visibility 0s linear 300ms;
   opacity: 1;
   visibility: visible;
 }
@@ -43,28 +43,11 @@
   backdrop-filter: none;
   visibility: hidden;
   pointer-events: none;
-  transition-delay: 0s, 0s, 150ms;
+  transition-delay: 0s, 0s, 300ms;
 }
 
-.aio-panel-edge {
-  position: fixed;
-  z-index: 70;
-  top: 0;
-  bottom: 0;
-  width: 7px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.aio-panel-edge--left { left: 0; }
-.aio-panel-edge--right { right: 0; }
-.aio-panel-edge:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
+.aio-panel-toggle-left,
+.aio-panel-toggle-right { flex: 0 0 auto; }
 
 .aio-close-subpage {
   position: relative;
@@ -79,10 +62,9 @@
 }
 
 .aio-file-preview-edge {
-  position: fixed;
-  z-index: 95;
-  top: 8px;
-  left: 8px;
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
   min-width: 72px;
   height: 28px;
   padding: 0 9px;

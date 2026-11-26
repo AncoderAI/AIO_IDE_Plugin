@@ -21,7 +21,7 @@ async function revealSidebar(frame) {
     || (await sidebar.getAttribute('class') || '').includes('aio-panel-hidden');
   if (await sidebar.isVisible().catch(() => false)
     && !await collapsed()) return sidebar;
-  const trigger = frame.locator('.panel-edge-trigger--sidebar, .aio-panel-edge--left').first();
+  const trigger = frame.getByRole('button', { name: '显示左侧栏', exact: true }).first();
   await trigger.hover({ force: true });
   await waitFor(async () => await sidebar.isVisible().catch(() => false) && !await collapsed(), 'sidebar reveal');
   return sidebar;
