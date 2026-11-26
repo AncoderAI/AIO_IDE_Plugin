@@ -145,3 +145,32 @@ test('concurrent opens share one panel creation', async () => {
   assert.equal(creations, 1)
   host.dispose()
 })
+
+test('workbench panel gets a new locked editor group', async () => {
+  const actions = []
+  const panel = { id: 'aio-panel' }
+  const vscode = {
+    ViewColumn: { Active: -1 },
+    Uri: { file: (value) => value },
+    commands: { executeCommand: async (command) => { actions.push(command) } },
+    window: {
+      createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
+      createWebviewPanel: (_type, _title, column) => {
+        assert.equal(column, -1)
+        actions.push('createWebviewPanel')
+        return panel
+      },
+    },
+  }
+  const context = { extensionPath: 'C:\\extension' }
+  const host = new WorkbenchHost(vscode, context)
+  const result = await host.createWorkbenchPanel('C:\\extension\\workbench\\ui')
+
+  assert.equal(result, panel)
+  assert.deepEqual(actions, [
+    'workbench.action.newGroupRight',
+    'createWebviewPanel',
+    'workbench.action.lockEditorGroup',
+  ])
+  host.dispose()
+})

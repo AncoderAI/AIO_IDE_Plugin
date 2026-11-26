@@ -241,6 +241,25 @@ class WorkbenchHost {
     return this.opening
   }
 
+  async createWorkbenchPanel(uiRoot) {
+    // Keep AIO in its own editor group. Locking this newly-created empty group
+    // makes Explorer open files in another group even after the user clicks AIO.
+    await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
+    const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', this.vscode.ViewColumn.Active, {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      enableCommandUris: false,
+      localResourceRoots: [this.vscode.Uri.file(uiRoot), this.vscode.Uri.file(path.join(this.context.extensionPath, 'src'))],
+    })
+    try {
+      await this.vscode.commands.executeCommand('workbench.action.lockEditorGroup')
+      return panel
+    } catch (error) {
+      panel.dispose()
+      throw error
+    }
+  }
+
   async createPanel() {
     const uiRoot = this.context.asAbsolutePath(path.join('workbench', 'ui'))
     const serviceRoot = this.context.asAbsolutePath(path.join('workbench', 'service'))
@@ -251,17 +270,12 @@ class WorkbenchHost {
     }
     const storageUri = this.context.storageUri || this.context.globalStorageUri
     await this.vscode.workspace.fs.createDirectory(storageUri)
-    const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', this.vscode.ViewColumn.Active, {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      enableCommandUris: false,
-      localResourceRoots: [this.vscode.Uri.file(uiRoot), this.vscode.Uri.file(path.join(this.context.extensionPath, 'src'))],
-    })
-    this.panel = panel
-    const panelDisposable = panel.onDidDispose(() => this.close(panel))
-    this.disposables.push(panelDisposable)
+    const panel = await this.createWorkbenchPanel(uiRoot)
     let service
     try {
+      this.panel = panel
+      const panelDisposable = panel.onDidDispose(() => this.close(panel))
+      this.disposables.push(panelDisposable)
       const profilePath = path.join(storageUri.fsPath, 'workbench')
       await fs.promises.mkdir(profilePath, { recursive: true })
       service = new WorkbenchService({

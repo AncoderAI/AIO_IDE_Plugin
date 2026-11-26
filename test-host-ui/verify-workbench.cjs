@@ -65,6 +65,7 @@ async function main() {
   const project = path.join(root, 'project');
   const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1';
   await fs.mkdir(project);
+  for (const file of ['first.txt', 'second.txt']) await fs.writeFile(path.join(project, file), file);
   let app;
   let restoreClipboard = async () => {};
   try {
@@ -134,6 +135,7 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        await require('./verify-split.cjs').verifySplit(window, frame);
         if (process.platform === 'win32') {
           for (const [cli, label] of [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]) {
             await sidebar.getByText(label, { exact: true }).click();
