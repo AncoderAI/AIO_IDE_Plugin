@@ -8,7 +8,7 @@ const { spawn } = require('node:child_process')
 const test = require('node:test')
 
 const { discoverClis, resolveCandidate } = require('../src/discovery')
-const { chooseWorkingDirectory, registerLauncher, terminalLaunch } = require('../src/launcher')
+const { chooseWorkingDirectory, ompThemeEnvironment, registerLauncher, terminalLaunch } = require('../src/launcher')
 
 test('discovers Windows command shims from PATH', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-discovery-'))
@@ -101,6 +101,7 @@ function vscodeMock({ trusted = true, configuredPath } = {}) {
   const terminals = []
   const actions = []
   const vscode = {
+    ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
     ThemeIcon: class ThemeIcon { constructor(id) { this.id = id } },
     commands: {
       registerCommand: (name, callback) => {
@@ -110,6 +111,7 @@ function vscodeMock({ trusted = true, configuredPath } = {}) {
       executeCommand: async (command) => { actions.push(command) },
     },
     window: {
+      activeColorTheme: { kind: 2 },
       onDidChangeActiveTerminal: () => ({ dispose() {} }),
       activeTextEditor: undefined,
       createTerminal: (options) => {
@@ -149,6 +151,7 @@ test('registers all public commands and starts a configured CLI terminal', async
   await callbacks.get('aio.openOmp')()
   assert.equal(terminals.length, 1)
   assert.equal(terminals[0].options.cwd, 'D:\\selected')
+  assert.deepEqual(terminals[0].options.env, { COLORFGBG: '15;0' })
   assert.equal(terminals[0].preserveFocus, false)
   assert.ok(actions.includes('workbench.action.terminal.focus'))
   vscode.window.activeTerminal = terminals[0]
@@ -159,6 +162,23 @@ test('registers all public commands and starts a configured CLI terminal', async
   const before = actions.length
   await callbacks.get('aio.pasteIntoTerminal')()
   assert.equal(actions.length, before)
+
+  await callbacks.get('aio.openClaude')()
+  await callbacks.get('aio.openCodex')()
+  assert.equal(terminals[1].options.env, undefined)
+  assert.equal(terminals[2].options.env, undefined)
+})
+
+test('OMP receives only a theme fallback matching the active VS Code appearance', () => {
+  const ColorThemeKind = { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 }
+  assert.deepEqual(ompThemeEnvironment({
+    ColorThemeKind,
+    window: { activeColorTheme: { kind: ColorThemeKind.Dark } },
+  }), { COLORFGBG: '15;0' })
+  assert.deepEqual(ompThemeEnvironment({
+    ColorThemeKind,
+    window: { activeColorTheme: { kind: ColorThemeKind.HighContrastLight } },
+  }), { COLORFGBG: '0;15' })
 })
 
 test('does not launch from an untrusted workspace', async () => {

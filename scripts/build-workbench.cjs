@@ -80,6 +80,16 @@ async function buildUi() {
     root: sourceRoot,
     base: './',
     plugins: [
+      {
+        name: 'aio-terminal-input-contrast',
+        enforce: 'pre',
+        transform(source, id) {
+          if (!id.replaceAll('\\', '/').endsWith('/src/components/TerminalDrawer.tsx')) return
+          const constructor = 'const terminal = new Terminal({'
+          if (!source.includes(constructor)) throw new Error('AIO TerminalDrawer constructor changed')
+          return source.replace(constructor, constructor + '\n      minimumContrastRatio: 4.5,')
+        },
+      },
       react(),
       {
         name: 'ancoder-vscode-workbench-html',

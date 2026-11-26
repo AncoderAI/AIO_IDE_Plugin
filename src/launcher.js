@@ -61,6 +61,12 @@ function terminalLaunch(executable, platform = process.platform, environment = p
   return { shellPath: executable, shellArgs: [] }
 }
 
+function ompThemeEnvironment(vscode) {
+  const kind = vscode.window.activeColorTheme?.kind
+  const light = kind === vscode.ColorThemeKind?.Light || kind === vscode.ColorThemeKind?.HighContrastLight
+  return { COLORFGBG: light ? '0;15' : '15;0' }
+}
+
 async function requireTrustedWorkspace(vscode) {
   if (vscode.workspace.isTrusted !== false) return true
   await vscode.window.showWarningMessage('AIO 无法在未受信任的工作区中启动本机 AI 编程 CLI。')
@@ -89,6 +95,7 @@ async function openCli(vscode, id, uri) {
   if (!cwd) return undefined
 
   const launch = terminalLaunch(definition.executable)
+  if (id === 'omp') launch.env = { ...launch.env, ...ompThemeEnvironment(vscode) }
   const terminal = vscode.window.createTerminal({
     name: `AIO · ${definition.label}`,
     cwd,
@@ -156,6 +163,7 @@ function registerLauncher(vscode, context) {
 module.exports = {
   chooseWorkingDirectory,
   openCli,
+  ompThemeEnvironment,
   registerLauncher,
   reportDetection,
   requireTrustedWorkspace,
