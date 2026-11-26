@@ -30,6 +30,7 @@
     let leftKeyboardInside = false
     let rightKeyboardInside = false
     let keyboardNavigation = false
+    let pointerInOrdinaryAio = false
     let interactionGeneration = 0
     let pendingFocusRestore
     let introElapsed = false
@@ -38,6 +39,7 @@
     const mountRequested = new Set()
     let sidebarWasMounted = false
     let inspectorWasMounted = false
+    let previewReady = false
 
     const edge = (side) => {
       const button = document.createElement('button')
@@ -49,6 +51,19 @@
     }
     const leftEdge = edge('left')
     const rightEdge = edge('right')
+    const previewEdge = document.createElement('button')
+    previewEdge.type = 'button'
+    previewEdge.className = 'aio-file-preview-edge'
+    previewEdge.textContent = '文件预览'
+    previewEdge.setAttribute('aria-label', '显示文件预览')
+    previewEdge.hidden = true
+    const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
+    previewEdge.addEventListener('pointerenter', requestFilePreview)
+    previewEdge.addEventListener('focus', requestFilePreview)
+    const onPreviewState = ({ data }) => {
+      if (data?.type === 'aio:file-preview-state') previewEdge.hidden = !data.collapsed
+    }
+    root.addEventListener('message', onPreviewState)
 
     const setPanel = (panel, visible) => {
       if (!panel) return
@@ -146,6 +161,11 @@
       app.classList.add('aio-auto-hide-panels')
       if (!leftEdge.isConnected) app.append(leftEdge)
       if (!rightEdge.isConnected) app.append(rightEdge)
+      if (!previewEdge.isConnected) app.append(previewEdge)
+      if (!previewReady) {
+        previewReady = true
+        root.dispatchEvent(new root.CustomEvent('aio:file-preview-ready'))
+      }
       const workbench = app.querySelector(':scope > .workbench')
       if (workbench?.hasAttribute('inert')) workbench.removeAttribute('inert')
       const nextSidebar = app.querySelector(':scope > .sidebar')
@@ -196,6 +216,11 @@
     }
 
     root.addEventListener('pointermove', (event) => {
+      const ordinaryAio = !event.target?.closest?.('.aio-file-preview-edge')
+      if (ordinaryAio !== pointerInOrdinaryAio) {
+        pointerInOrdinaryAio = ordinaryAio
+        if (ordinaryAio) root.dispatchEvent(new root.CustomEvent('aio:file-preview-aio-enter'))
+      }
       const containsPoint = (panel) => {
         if (!panel || panel.classList.contains('aio-panel-hidden')) return false
         const rect = panel.getBoundingClientRect()
@@ -226,6 +251,7 @@
       if (event.clientX <= 7) show('left')
     }, true)
     const leaveWorkbench = () => {
+      pointerInOrdinaryAio = false
       leftInside = false
       rightInside = false
       if (introElapsed) leftVisible = false
@@ -271,6 +297,8 @@
       if (introTimer) root.clearTimeout(introTimer)
       leftEdge.remove()
       rightEdge.remove()
+      previewEdge.remove()
+      root.removeEventListener('message', onPreviewState)
       sidebar?.classList.remove('aio-panel-hidden')
       inspector?.classList.remove('aio-panel-hidden')
       app?.classList.remove('aio-auto-hide-panels')

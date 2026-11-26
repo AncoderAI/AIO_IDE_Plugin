@@ -66,6 +66,30 @@
   outline-offset: -2px;
 }
 
+.aio-file-preview-edge {
+  position: fixed;
+  z-index: 95;
+  top: 8px;
+  left: 8px;
+  min-width: 72px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 6px;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--canvas) 90%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, #000 18%, transparent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.aio-file-preview-edge[hidden] { display: none; }
+.aio-file-preview-edge:hover,
+.aio-file-preview-edge:focus-visible {
+  border-color: var(--focus);
+  outline: 1px solid var(--focus);
+}
+
 .app-shell.aio-auto-hide-panels .panel-scrim {
   display: none !important;
   pointer-events: none !important;

@@ -6,6 +6,7 @@ const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
+const { PreviewGroupController } = require('./preview-group')
 const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
 const {
   HANDOFF_TTL_MS, clearProjectHandoff, currentWorkspaceMatches, projectRoot, registeredProject,
@@ -236,6 +237,8 @@ class WorkbenchHost {
     this.terminalClipboardRequests = new Map()
     this.panelListeners = new Set()
     this.projectSwitch = undefined
+    this.previewGroup = options.previewGroupController || new PreviewGroupController(vscode, context, options.previewGroup)
+    this.previewReadyPanels = new WeakSet()
     this.log = vscode.window.createOutputChannel('AIO 工作台')
   }
 
@@ -402,6 +405,7 @@ class WorkbenchHost {
   async createWorkbenchPanel(uiRoot) {
     // Keep AIO in its own editor group. Locking this newly-created empty group
     // makes Explorer open files in another group even after the user clicks AIO.
+    await this.previewGroup.captureBaseline()
     await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
     const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', this.vscode.ViewColumn.Active, {
       enableScripts: true,
@@ -414,6 +418,7 @@ class WorkbenchHost {
       return panel
     } catch (error) {
       panel.dispose()
+      await this.previewGroup.close()
       throw error
     }
   }
@@ -462,9 +467,9 @@ class WorkbenchHost {
       const panelStyleUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.css'))))
       const source = await fs.promises.readFile(indexPath, 'utf8')
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
-      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri)
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => { void this.handleMessage(message, panel, service) })
       this.disposables.push(messageDisposable)
+      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri)
       return panel
     } catch (error) {
       if (this.service === service) this.service = undefined
@@ -481,6 +486,20 @@ class WorkbenchHost {
 
   async handleMessage(message, panel = this.panel, service = this.service) {
     if (!panel || !service || this.panel !== panel || this.service !== service) return
+    if (message?.type === 'aio:file-preview-ready') {
+      if (this.previewReadyPanels.has(panel)) return
+      this.previewReadyPanels.add(panel)
+      await this.previewGroup.attach(panel)
+      return
+    }
+    if (message?.type === 'aio:file-preview-group' && message.action === 'show') {
+      await this.previewGroup.showFromTrigger()
+      return
+    }
+    if (message?.type === 'aio:file-preview-group' && message.action === 'aio-enter') {
+      this.previewGroup.aioPointerEntered()
+      return
+    }
     if (message?.type === 'aio:project-activate') {
       try { await this.activateProjectPath(message.path) }
       catch (error) { await this.vscode.window.showErrorMessage(errorMessage(error)) }
@@ -598,6 +617,7 @@ class WorkbenchHost {
   close(panel = this.panel) {
     if (panel && this.panel !== panel) return
     this.panel = undefined
+    void this.previewGroup.close()
     this.notifyPanelChanged()
     for (const request of this.referenceRequests.values()) {
       clearTimeout(request.timer)
@@ -619,6 +639,7 @@ class WorkbenchHost {
     this.panel?.dispose()
     this.close()
     this.log.dispose()
+    void this.previewGroup.dispose()
   }
 }
 

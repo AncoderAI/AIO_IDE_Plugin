@@ -111,11 +111,14 @@ async function main() {
         '--extensionTestsPath=' + path.join(__dirname, 'open.cjs'), project],
     });
     const window = await app.firstWindow();
+    if (process.env.AIO_TEST_PREVIEW_GROUP === '1') await fs.writeFile(path.join(project, '.aio-open-preview-now'), '');
     const aioTab = window.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i });
     const sidebar = window.locator('.part.sidebar');
-    await aioTab.click();
-    for (const label of ['OMP', 'Claude Code', 'Codex', '完整工作台']) {
-      await sidebar.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+    if (process.env.AIO_TEST_PREVIEW_GROUP !== '1') {
+      await aioTab.click();
+      for (const label of ['OMP', 'Claude Code', 'Codex', '完整工作台']) {
+        await sidebar.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+      }
     }
     const errors = [];
     window.on('pageerror', (error) => errors.push(error.message));
@@ -130,6 +133,10 @@ async function main() {
         if (!ready) continue;
         if (process.env.AIO_TEST_AUTO_PANELS === '1') {
           console.log(await require('./verify-auto-panels.cjs').verifyAutoPanels(window, frame, app));
+          return;
+        }
+        if (process.env.AIO_TEST_PREVIEW_GROUP === '1') {
+          console.log(await require('./verify-preview-group.cjs').verifyPreviewGroup(window, frame, project));
           return;
         }
         await frame.waitForFunction(() => document.documentElement.dataset.theme === 'dark', undefined, { timeout: 10000 });

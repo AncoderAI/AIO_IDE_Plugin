@@ -221,6 +221,15 @@
       try { callback({ payload: data.payload }) } catch (error) { console.error('AIO event listener failed:', error) }
     }
   })
+  target.addEventListener('aio:file-preview-request', () => {
+    vscode.postMessage({ type: 'aio:file-preview-group', action: 'show' })
+  })
+  target.addEventListener('aio:file-preview-aio-enter', () => {
+    vscode.postMessage({ type: 'aio:file-preview-group', action: 'aio-enter' })
+  })
+  target.addEventListener('aio:file-preview-ready', () => {
+    vscode.postMessage({ type: 'aio:file-preview-ready' })
+  })
 
   const bridge = Object.freeze({
     core: Object.freeze({ invoke }),

@@ -41,6 +41,12 @@ test('webview bridge correlates requests and forwards named events', async () =>
   target.emit('message', { data: { type: 'aio:event', event: 'coding-event', payload: { event: 'coding:delta' } } })
   assert.deepEqual(received, { event: 'coding:delta' })
   unlisten()
+  target.emit('aio:file-preview-request')
+  assert.deepEqual(sent.at(-1), { type: 'aio:file-preview-group', action: 'show' })
+  target.emit('aio:file-preview-aio-enter')
+  assert.deepEqual(sent.at(-1), { type: 'aio:file-preview-group', action: 'aio-enter' })
+  target.emit('aio:file-preview-ready')
+  assert.deepEqual(sent.at(-1), { type: 'aio:file-preview-ready' })
 })
 
 test('webview keeps terminal copy and paste shortcuts in the browser clipboard path', () => {
@@ -342,6 +348,11 @@ test('workbench clipboard commands require the active panel and a visible termin
 test('workbench panel gets a new locked editor group', async () => {
   const actions = []
   const panel = { id: 'aio-panel' }
+  const previewGroupController = {
+    captureBaseline: async () => { actions.push('captureBaseline') },
+    close: async () => {},
+    dispose: async () => {},
+  }
   const vscode = {
     ViewColumn: { Active: -1 },
     Uri: { file: (value) => value },
@@ -356,14 +367,37 @@ test('workbench panel gets a new locked editor group', async () => {
     },
   }
   const context = { extensionPath: 'C:\\extension' }
-  const host = new WorkbenchHost(vscode, context)
+  const host = new WorkbenchHost(vscode, context, { previewGroupController })
   const result = await host.createWorkbenchPanel('C:\\extension\\workbench\\ui')
 
   assert.equal(result, panel)
   assert.deepEqual(actions, [
+    'captureBaseline',
     'workbench.action.newGroupRight',
     'createWebviewPanel',
     'workbench.action.lockEditorGroup',
   ])
+  host.dispose()
+})
+
+test('workbench preview timer attaches once after the webview ready handshake', async () => {
+  let attaches = 0
+  const previewGroupController = {
+    attach: async () => { attaches++ },
+    close: async () => {},
+    dispose: async () => {},
+  }
+  const vscode = { window: { createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }) } }
+  const host = new WorkbenchHost(vscode, {}, { previewGroupController })
+  const panel = {}
+  const service = {}
+  host.panel = panel
+  host.service = service
+
+  await host.handleMessage({ type: 'aio:file-preview-ready' }, panel, service)
+  await host.handleMessage({ type: 'aio:file-preview-ready' }, panel, service)
+  assert.equal(attaches, 1)
+  host.panel = undefined
+  host.service = undefined
   host.dispose()
 })

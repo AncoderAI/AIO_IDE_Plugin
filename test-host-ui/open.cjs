@@ -10,6 +10,19 @@ exports.run = async function () {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
+  if (process.env.AIO_TEST_PREVIEW_GROUP === '1') {
+    const fs = require('node:fs/promises');
+    const path = require('node:path');
+    const cwd = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    const file = vscode.Uri.file(path.join(cwd, 'first.txt'));
+    const document = await vscode.workspace.openTextDocument(file);
+    await vscode.window.showTextDocument(document, { preview: false });
+    const trigger = path.join(cwd, '.aio-open-preview-now');
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline && !(await fs.stat(trigger).catch(() => null))) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
   await vscode.commands.executeCommand('aio.openWorkbench', vscode.workspace.workspaceFolders[0].uri);
   if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
     const fs = require('node:fs/promises');
