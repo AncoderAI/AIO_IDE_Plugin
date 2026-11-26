@@ -1,0 +1,48 @@
+{
+  "name": "aio-ide",
+  "displayName": "AIO · AI CLI 工作台",
+  "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
+  "version": "0.1.0",
+  "publisher": "ancoder",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/AncoderAI/AIO_IDE_Plugin.git" },
+  "engines": { "vscode": "^1.97.0" },
+  "categories": ["Other"],
+  "extensionKind": ["workspace"],
+  "main": "./src/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false },
+    "virtualWorkspaces": { "supported": false }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "prepackage": "node -e \"require('node:fs').mkdirSync('dist', {recursive:true})\"",
+    "package": "vsce package --no-dependencies --out dist/aio-ide.vsix"
+  },
+  "contributes": {
+    "commands": [
+      { "command": "aio.openTerminal", "category": "AIO", "title": "选择 AI CLI 并打开终端" },
+      { "command": "aio.openOmp", "category": "AIO", "title": "打开 OMP 终端" },
+      { "command": "aio.openClaude", "category": "AIO", "title": "打开 Claude Code 终端" },
+      { "command": "aio.openCodex", "category": "AIO", "title": "打开 Codex 终端" },
+      { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" }
+    ],
+    "menus": {
+      "explorer/context": [
+        { "command": "aio.openTerminal", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@7" }
+      ]
+    },
+    "views": {
+      "explorer": [{ "id": "aio.launchers", "name": "AIO", "when": "isWorkspaceTrusted" }]
+    },
+    "configuration": {
+      "title": "AIO",
+      "properties": {
+        "aio.ompPath": { "type": "string", "default": "", "scope": "machine", "description": "OMP 可执行文件的绝对路径。留空时自动检测。" },
+        "aio.claudePath": { "type": "string", "default": "", "scope": "machine", "description": "Claude Code 可执行文件的绝对路径。留空时自动检测。" },
+        "aio.codexPath": { "type": "string", "default": "", "scope": "machine", "description": "Codex 可执行文件的绝对路径。留空时自动检测。" }
+      }
+    }
+  }
+}

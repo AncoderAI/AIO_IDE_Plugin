@@ -1,0 +1,145 @@
+'use strict'
+
+const fs = require('node:fs/promises')
+const path = require('node:path')
+const { CLI_DEFINITIONS, discoverCli, discoverClis } = require('./discovery')
+
+async function folderPathFromUri(uri) {
+  if (!uri?.fsPath) return undefined
+  try {
+    return (await fs.stat(uri.fsPath)).isDirectory() ? uri.fsPath : path.dirname(uri.fsPath)
+  } catch {
+    return undefined
+  }
+}
+
+async function chooseWorkingDirectory(vscode, uri) {
+  const explicitPath = await folderPathFromUri(uri)
+  if (explicitPath) return explicitPath
+
+  const editorUri = vscode.window.activeTextEditor?.document?.uri
+  const editorFolder = editorUri && vscode.workspace.getWorkspaceFolder(editorUri)
+  if (editorFolder) return editorFolder.uri.fsPath
+
+  const folders = vscode.workspace.workspaceFolders || []
+  if (folders.length === 1) return folders[0].uri.fsPath
+  if (folders.length > 1) {
+    const selected = await vscode.window.showQuickPick(
+      folders.map((folder) => ({ label: folder.name, description: folder.uri.fsPath, folder })),
+      { placeHolder: '选择 AI 编程 CLI 的项目目录' },
+    )
+    return selected?.folder.uri.fsPath
+  }
+
+  const selected = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    openLabel: '在此打开 AI 编程 CLI',
+  })
+  return selected?.[0]?.fsPath
+}
+
+function terminalLaunch(executable, platform = process.platform, environment = process.env) {
+  const extension = path.extname(executable).toLowerCase()
+  if (platform === 'win32' && (extension === '.cmd' || extension === '.bat')) {
+    return {
+      shellPath: environment.ComSpec || 'C:\\Windows\\System32\\cmd.exe',
+      shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%""',
+      env: { AIO_CLI_EXECUTABLE: executable },
+    }
+  }
+  if (platform === 'win32' && extension === '.ps1') {
+    return {
+      shellPath: environment.SystemRoot
+        ? path.join(environment.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+        : 'powershell.exe',
+      shellArgs: ['-NoLogo', '-NoProfile', '-File', executable],
+    }
+  }
+  return { shellPath: executable, shellArgs: [] }
+}
+
+async function requireTrustedWorkspace(vscode) {
+  if (vscode.workspace.isTrusted !== false) return true
+  await vscode.window.showWarningMessage('AIO 无法在未受信任的工作区中启动本机 AI 编程 CLI。')
+  return false
+}
+
+async function showMissingCli(vscode, definition) {
+  const action = await vscode.window.showWarningMessage(
+    `未找到 ${definition.label}。请安装该 CLI，或配置 aio.${definition.setting}。`,
+    '打开设置',
+  )
+  if (action === '打开设置') {
+    await vscode.commands.executeCommand('workbench.action.openSettings', `aio.${definition.setting}`)
+  }
+}
+
+async function openCli(vscode, id, uri) {
+  if (!(await requireTrustedWorkspace(vscode))) return undefined
+  const configuration = vscode.workspace.getConfiguration('aio')
+  const definition = await discoverCli(id, configuration)
+  if (!definition.executable) {
+    await showMissingCli(vscode, definition)
+    return undefined
+  }
+  const cwd = await chooseWorkingDirectory(vscode, uri)
+  if (!cwd) return undefined
+
+  const launch = terminalLaunch(definition.executable)
+  const terminal = vscode.window.createTerminal({
+    name: `AIO · ${definition.label}`,
+    cwd,
+    iconPath: new vscode.ThemeIcon('terminal'),
+    ...launch,
+  })
+  terminal.show()
+  return terminal
+}
+
+async function selectCli(vscode) {
+  const configuration = vscode.workspace.getConfiguration('aio')
+  const results = await discoverClis(configuration)
+  const selected = await vscode.window.showQuickPick(results.map((result) => ({
+    label: result.label,
+    description: result.executable || '未找到',
+    id: result.id,
+  })), { placeHolder: '选择一个 AI 编程 CLI' })
+  return selected?.id
+}
+
+async function reportDetection(vscode) {
+  const results = await discoverClis(vscode.workspace.getConfiguration('aio'))
+  const summary = results
+    .map((result) => `${result.label}：${result.executable || '未找到'}`)
+    .join(' | ')
+  await vscode.window.showInformationMessage(summary)
+  return results
+}
+
+function registerLauncher(vscode, context) {
+  const register = (command, callback) => {
+    const disposable = vscode.commands.registerCommand(command, callback)
+    context.subscriptions.push(disposable)
+  }
+
+  register('aio.openTerminal', async (uri) => {
+    const id = await selectCli(vscode)
+    return id ? openCli(vscode, id, uri) : undefined
+  })
+  register('aio.openOmp', (uri) => openCli(vscode, 'omp', uri))
+  register('aio.openClaude', (uri) => openCli(vscode, 'claude', uri))
+  register('aio.openCodex', (uri) => openCli(vscode, 'codex', uri))
+  register('aio.detectClis', () => reportDetection(vscode))
+}
+
+module.exports = {
+  chooseWorkingDirectory,
+  openCli,
+  registerLauncher,
+  reportDetection,
+  requireTrustedWorkspace,
+  selectCli,
+  terminalLaunch,
+}

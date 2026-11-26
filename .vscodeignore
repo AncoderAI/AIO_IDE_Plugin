@@ -1,0 +1,13 @@
+.git/**
+.omx/**
+test/**
+test-host/**
+test-host-ui/**
+scripts/**
+.vscode/**
+dist/**
+node_modules/**
+DEVELOPMENT_PLAN.md
+.gitignore
+.gitattributes
+**/*.map
