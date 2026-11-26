@@ -49,6 +49,11 @@ async function verifyPreviewGroup(window, frame, project) {
   assert.equal(await tab.count(), 1, 'The open file tab was discarded while its group was collapsed.');
   const previewEdge = frame.locator('.aio-file-preview-edge').first();
   await previewEdge.waitFor({ state: 'visible' });
+  const sidebarButton = frame.locator('.aio-panel-toggle-left');
+  const previewButtonBox = await previewEdge.boundingBox();
+  const sidebarButtonBox = await sidebarButton.boundingBox();
+  assert.ok(previewButtonBox && sidebarButtonBox && previewButtonBox.x < sidebarButtonBox.x,
+    'File preview must appear to the left of the sidebar button.');
   await previewEdge.hover();
   await waitFor(async () => (await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'left preview edge to restore the file group');
   const restoredEditor = await editor.boundingBox();

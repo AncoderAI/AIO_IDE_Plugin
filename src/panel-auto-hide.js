@@ -232,7 +232,7 @@
     const ensureToolbarToggles = () => {
       const nav = app?.querySelector('.title-toolbar__nav')
       if (nav && !leftToggle.isConnected) nav.prepend(leftToggle)
-      if (nav && !previewEdge.isConnected) nav.append(previewEdge)
+      if (nav && !previewEdge.isConnected) leftToggle.before(previewEdge)
       wireToggle(leftToggle, 'left')
       const actions = app?.querySelectorAll('.title-toolbar__actions button')
       const candidate = actions && actions.length > 1 ? actions[1] : undefined
