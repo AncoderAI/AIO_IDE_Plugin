@@ -34,6 +34,16 @@
   }
 
   target.addEventListener('keydown', onTerminalClipboardShortcut, true)
+  target.addEventListener('aio:file-drop-request', (event) => {
+    const detail = event.detail
+    if (!detail || !Number.isSafeInteger(detail.id) || !Array.isArray(detail.candidates)) return
+    vscode.postMessage({ type: 'aio:file-drop', id: detail.id, candidates: detail.candidates })
+  })
+  target.addEventListener('aio:file-reference-result', (event) => {
+    const detail = event.detail
+    if (!detail || !Number.isSafeInteger(detail.id)) return
+    vscode.postMessage({ type: 'aio:file-reference-result', id: detail.id, inserted: detail.inserted === true })
+  })
 
   function invoke(command, args) {
     const id = nextId++
@@ -61,6 +71,22 @@
 
   target.addEventListener('message', ({ data }) => {
     if (!data || typeof data !== 'object') return
+    if (data.type === 'aio:insert-file-references' && Number.isSafeInteger(data.id) && Array.isArray(data.references)) {
+      target.dispatchEvent(new target.CustomEvent('aio:insert-file-references', {
+        detail: { id: data.id, references: data.references },
+      }))
+      return
+    }
+    if (data.type === 'aio:file-drop-response' && Number.isSafeInteger(data.id)) {
+      target.dispatchEvent(new target.CustomEvent('aio:file-drop-resolved', {
+        detail: {
+          id: data.id,
+          references: Array.isArray(data.references) ? data.references : [],
+          error: typeof data.error === 'string' ? data.error : undefined,
+        },
+      }))
+      return
+    }
     if (data.type === 'aio:response' && Number.isSafeInteger(data.id)) {
       const response = pending.get(data.id)
       if (!response) return

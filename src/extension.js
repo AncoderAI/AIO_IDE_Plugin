@@ -3,10 +3,11 @@
 const vscode = require('vscode');
 const { registerLauncher } = require('./launcher');
 const { registerWorkbench } = require('./workbench');
+const { registerFileReferenceTree } = require('./file-reference-tree');
 
 function activate(context) {
   registerLauncher(vscode, context);
-  registerWorkbench(vscode, context);
+  const workbenchHost = registerWorkbench(vscode, context);
 
   const entries = [
     ['OMP', 'aio.openOmp'],
@@ -19,13 +20,7 @@ function activate(context) {
     item.command = { command, title: label };
     return item;
   });
-  const launchers = {
-    getChildren: parent => parent ? [] : entries,
-    getTreeItem: item => item,
-  };
-  for (const view of ['aio.launchers', 'aio.sidebarLaunchers']) {
-    context.subscriptions.push(vscode.window.registerTreeDataProvider(view, launchers));
-  }
+  registerFileReferenceTree(vscode, context, workbenchHost, entries);
 }
 
 module.exports = { activate };

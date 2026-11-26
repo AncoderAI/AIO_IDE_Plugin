@@ -6,6 +6,7 @@ const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
+const { resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
 
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024
 const MAX_RESPONSE_BYTES = 32 * 1024 * 1024
@@ -189,7 +190,7 @@ function nonce() {
   return randomBytes(24).toString('base64url')
 }
 
-function renderWorkbenchHtml(html, webview, uiUri, bridgeUri) {
+function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri) {
   const token = nonce()
   const base = String(uiUri).replace(/\/?$/, '/')
   const csp = [
@@ -204,7 +205,7 @@ function renderWorkbenchHtml(html, webview, uiUri, bridgeUri) {
     "form-action 'none'",
   ].join('; ')
   let result = html.replace(/<meta\s+http-equiv=["']Content-Security-Policy["'][^>]*>\s*/gi, '')
-  result = result.replace(/<head(\s[^>]*)?>/i, (head) => `${head}\n<meta http-equiv="Content-Security-Policy" content="${csp}">\n<base href="${base}">\n<script nonce="${token}" src="${bridgeUri}"></script>`)
+  result = result.replace(/<head(\s[^>]*)?>/i, (head) => `${head}\n<meta http-equiv="Content-Security-Policy" content="${csp}">\n<base href="${base}">\n<script nonce="${token}" src="${bridgeUri}"></script>${fileDropUri ? `\n<script nonce="${token}" src="${fileDropUri}"></script>` : ''}`)
   result = result.replace(/<script\b(?![^>]*\bnonce=)/gi, `<script nonce="${token}"`)
   return result
 }
@@ -225,7 +226,54 @@ class WorkbenchHost {
     this.openFolders = []
     this.disposables = []
     this.opening = undefined
+    this.referenceSequence = 0
+    this.referenceRequests = new Map()
+    this.panelListeners = new Set()
     this.log = vscode.window.createOutputChannel('AIO 工作台')
+  }
+
+  onDidChangePanel(listener) {
+    this.panelListeners.add(listener)
+    return { dispose: () => this.panelListeners.delete(listener) }
+  }
+
+  notifyPanelChanged() {
+    for (const listener of this.panelListeners) listener(Boolean(this.panel))
+  }
+
+  isOpen() { return Boolean(this.panel && this.service) }
+
+  async insertDroppedCandidates(candidates) {
+    if (!this.panel || !this.service) {
+      await this.vscode.window.showWarningMessage('请先打开 AIO 完整工作台，再引用文件或文件夹。')
+      return false
+    }
+    const references = await resolveDroppedReferences(this.vscode, path, candidates)
+    if (!references.length) {
+      await this.vscode.window.showWarningMessage('所选项目不在当前 VS Code 工作区中，或已经不存在。')
+      return false
+    }
+    const id = ++this.referenceSequence
+    const result = new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.referenceRequests.delete(id)
+        resolve(false)
+      }, 5000)
+      timer.unref?.()
+      this.referenceRequests.set(id, { resolve, timer })
+    })
+    const posted = await this.panel.webview.postMessage({ type: 'aio:insert-file-references', id, references })
+    if (!posted) {
+      const request = this.referenceRequests.get(id)
+      if (request) {
+        this.referenceRequests.delete(id)
+        clearTimeout(request.timer)
+        request.resolve(false)
+      }
+    }
+    const inserted = await result
+    if (!inserted) await this.vscode.window.showWarningMessage('当前工作台没有可接收文件引用的对话框或终端输入区。')
+    return inserted
   }
 
   async open(resource) {
@@ -296,18 +344,23 @@ class WorkbenchHost {
         if (this.service === service && this.panel === panel) void this.vscode.window.showErrorMessage(message)
       })
       service.start()
+      this.notifyPanelChanged()
       const uiUri = panel.webview.asWebviewUri(this.vscode.Uri.file(uiRoot))
       const bridgeUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'webview-bridge.js'))))
+      const fileDropUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'file-drop.js'))))
       const source = await fs.promises.readFile(indexPath, 'utf8')
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
-      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri)
+      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri)
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => { void this.handleMessage(message, panel, service) })
       this.disposables.push(messageDisposable)
       return panel
     } catch (error) {
       if (this.service === service) this.service = undefined
       service?.stop()
-      if (this.panel === panel) this.panel = undefined
+      if (this.panel === panel) {
+        this.panel = undefined
+        this.notifyPanelChanged()
+      }
       for (const disposable of this.disposables.splice(0)) disposable.dispose()
       panel.dispose()
       throw error
@@ -315,7 +368,32 @@ class WorkbenchHost {
   }
 
   async handleMessage(message, panel = this.panel, service = this.service) {
-    if (!validWebviewRequest(message) || !panel || !service || this.panel !== panel || this.service !== service) return
+    if (!panel || !service || this.panel !== panel || this.service !== service) return
+    if (message?.type === 'aio:file-reference-result' && Number.isSafeInteger(message.id)) {
+      const request = this.referenceRequests.get(message.id)
+      if (!request) return
+      this.referenceRequests.delete(message.id)
+      clearTimeout(request.timer)
+      request.resolve(message.inserted === true)
+      return
+    }
+    if (validFileDropRequest(message)) {
+      try {
+        const references = await resolveDroppedReferences(this.vscode, path, message.candidates)
+        if (this.panel === panel && this.service === service) {
+          await panel.webview.postMessage({ type: 'aio:file-drop-response', id: message.id, references })
+        }
+      } catch (error) {
+        this.log.appendLine(`AIO 文件引用失败: ${errorMessage(error)}`)
+        if (this.panel === panel && this.service === service) {
+          await panel.webview.postMessage({
+            type: 'aio:file-drop-response', id: message.id, references: [], error: errorMessage(error),
+          })
+        }
+      }
+      return
+    }
+    if (!validWebviewRequest(message)) return
     try {
       let result
       if (message.command === 'set_title_bar_theme') {
@@ -375,6 +453,12 @@ class WorkbenchHost {
   close(panel = this.panel) {
     if (panel && this.panel !== panel) return
     this.panel = undefined
+    this.notifyPanelChanged()
+    for (const request of this.referenceRequests.values()) {
+      clearTimeout(request.timer)
+      request.resolve(false)
+    }
+    this.referenceRequests.clear()
     const service = this.service
     this.service = undefined
     service?.stop()

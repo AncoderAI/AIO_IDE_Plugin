@@ -136,6 +136,13 @@ async function main() {
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
         await require('./verify-split.cjs').verifySplit(window, frame);
+        if (process.env.AIO_TEST_FILE_DROP === '1') {
+          console.log(await require('./verify-drop.cjs').verifyDrop(window, frame, project));
+        }
+        if (process.env.AIO_TEST_NATIVE_DROP === '1') {
+          await require('./verify-native-drop.cjs').verifyNativeDrop(window, project);
+        }
+        if (process.env.AIO_TEST_FILE_DROP === '1' || process.env.AIO_TEST_NATIVE_DROP === '1') return;
         if (process.platform === 'win32') {
           for (const [cli, label] of [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]) {
             await sidebar.getByText(label, { exact: true }).click();

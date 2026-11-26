@@ -82,10 +82,12 @@ test('workbench service uses NDJSON request response and event routing', async (
 
 test('HTML rendering installs bridge before app scripts and enforces CSP', () => {
   const webview = { cspSource: 'vscode-webview:', asWebviewUri: String }
-  const output = renderWorkbenchHtml('<html><head><script type="module" src="./assets/app.js"></script></head></html>', webview, 'vscode-resource:/ui', 'vscode-resource:/bridge.js')
+  const output = renderWorkbenchHtml('<html><head><script type="module" src="./assets/app.js"></script></head></html>', webview, 'vscode-resource:/ui', 'vscode-resource:/bridge.js', 'vscode-resource:/file-drop.js')
   assert.match(output, /Content-Security-Policy/)
   assert.match(output, /connect-src 'none'/)
   assert.ok(output.indexOf('bridge.js') < output.indexOf('app.js'))
+  assert.ok(output.indexOf('bridge.js') < output.indexOf('file-drop.js'))
+  assert.ok(output.indexOf('file-drop.js') < output.indexOf('app.js'))
   assert.match(output, /<script nonce="[^"]+" type="module"/)
 })
 
