@@ -377,6 +377,22 @@ async function buildService() {
   for (const path of Object.keys(result.metafile.inputs)) trackDependency(resolve(path))
 }
 
+function disableOmpComposerPredictions() {
+  const service = join(serviceOutput, 'workbench-service.cjs')
+  let source = readFileSync(service, 'utf8')
+  const restored = 'if (entry.agent === "omp") return ["--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];'
+  const configuredRestore = 'if (entry.agent === "omp") return ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml"), "--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];'
+  if (source.includes(restored)) source = source.replace(restored, configuredRestore)
+  const claude = 'if (agent === "claude" && !fresh) {'
+  const configuredFresh = 'if (agent === "omp") {\n    return { executable, args: ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml")], label, agent };\n  }\n  '
+  if (!source.includes(configuredFresh)) source = source.replace(claude, configuredFresh + claude)
+  if (!source.includes(configuredRestore) || !source.includes(configuredFresh)) {
+    throw new Error('AIO workbench OMP prediction overlay anchors changed')
+  }
+  writeFileSync(service, source)
+  writeFileSync(join(serviceOutput, 'aio-omp-config.yml'), 'composer:\n  predictions: false\n')
+}
+
 function buildTerminalHost() {
   if (process.platform !== 'win32') return
   const manifest = requireFile(join(spikeRoot, 'terminal-host', 'Cargo.toml'), 'AIO terminal host manifest')
@@ -523,6 +539,7 @@ async function main() {
   rmSync(join(outputRoot, 'resources'), { recursive: true, force: true })
   await buildUi()
   await buildService()
+  disableOmpComposerPredictions()
   setDefaultTheme()
   buildTerminalHost()
   copyNodePty()

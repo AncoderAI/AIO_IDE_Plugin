@@ -42,6 +42,19 @@ test('Windows cmd shims use cmd arguments without shell text concatenation', () 
   })
 })
 
+test('OMP config overlay survives Windows command shims without joining arbitrary arguments', () => {
+  const result = terminalLaunch('C:\Program Files\AIO\omp.cmd', 'win32', { ComSpec: 'cmd.exe' },
+    ['--config', 'C:\Program Files\AIO\aio-omp-config.yml'])
+  assert.deepEqual(result, {
+    shellPath: 'cmd.exe',
+    shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%" --config "%AIO_OMP_CONFIG%""',
+    env: {
+      AIO_CLI_EXECUTABLE: 'C:\Program Files\AIO\omp.cmd',
+      AIO_OMP_CONFIG: 'C:\Program Files\AIO\aio-omp-config.yml',
+    },
+  })
+})
+
 test('Windows cmd launch preserves Chinese, spaces, ampersands, and percent signs', { skip: process.platform !== 'win32' }, async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-cmd-'))
   const directory = path.join(root, '中文 空格 & 100%')
@@ -140,7 +153,7 @@ test('registers all public commands and starts a configured CLI terminal', async
   await fs.writeFile(executable, '')
   if (process.platform !== 'win32') await fs.chmod(executable, 0o755)
   const { vscode, callbacks, terminals, actions } = vscodeMock({ configuredPath: executable })
-  const context = { subscriptions: [] }
+  const context = { subscriptions: [], extensionPath: 'C:\extension' }
   registerLauncher(vscode, context)
 
   assert.deepEqual([...callbacks.keys()], [
@@ -152,6 +165,9 @@ test('registers all public commands and starts a configured CLI terminal', async
   assert.equal(terminals.length, 1)
   assert.equal(terminals[0].options.cwd, 'D:\\selected')
   assert.deepEqual(terminals[0].options.env, { COLORFGBG: '15;0' })
+  assert.deepEqual(terminals[0].options.shellArgs, [
+    '--config', path.join('C:\extension', 'workbench', 'service', 'aio-omp-config.yml'),
+  ])
   assert.equal(terminals[0].preserveFocus, false)
   assert.ok(actions.includes('workbench.action.terminal.focus'))
   vscode.window.activeTerminal = terminals[0]

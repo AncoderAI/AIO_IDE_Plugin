@@ -41,13 +41,15 @@ async function chooseWorkingDirectory(vscode, uri) {
   return selected?.[0]?.fsPath
 }
 
-function terminalLaunch(executable, platform = process.platform, environment = process.env) {
+function terminalLaunch(executable, platform = process.platform, environment = process.env, extraArgs = []) {
   const extension = path.extname(executable).toLowerCase()
   if (platform === 'win32' && (extension === '.cmd' || extension === '.bat')) {
     return {
       shellPath: environment.ComSpec || 'C:\\Windows\\System32\\cmd.exe',
-      shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%""',
-      env: { AIO_CLI_EXECUTABLE: executable },
+      shellArgs: extraArgs.length
+        ? '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%" --config "%AIO_OMP_CONFIG%""'
+        : '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%""',
+      env: { AIO_CLI_EXECUTABLE: executable, ...(extraArgs.length ? { AIO_OMP_CONFIG: extraArgs[1] } : {}) },
     }
   }
   if (platform === 'win32' && extension === '.ps1') {
@@ -55,10 +57,10 @@ function terminalLaunch(executable, platform = process.platform, environment = p
       shellPath: environment.SystemRoot
         ? path.join(environment.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
         : 'powershell.exe',
-      shellArgs: ['-NoLogo', '-NoProfile', '-File', executable],
+      shellArgs: ['-NoLogo', '-NoProfile', '-File', executable, ...extraArgs],
     }
   }
-  return { shellPath: executable, shellArgs: [] }
+  return { shellPath: executable, shellArgs: extraArgs }
 }
 
 function ompThemeEnvironment(vscode) {
@@ -83,7 +85,7 @@ async function showMissingCli(vscode, definition) {
   }
 }
 
-async function openCli(vscode, id, uri) {
+async function openCli(vscode, id, uri, ompConfigPath) {
   if (!(await requireTrustedWorkspace(vscode))) return undefined
   const configuration = vscode.workspace.getConfiguration('aio')
   const definition = await discoverCli(id, configuration)
@@ -94,7 +96,8 @@ async function openCli(vscode, id, uri) {
   const cwd = await chooseWorkingDirectory(vscode, uri)
   if (!cwd) return undefined
 
-  const launch = terminalLaunch(definition.executable)
+  const launch = terminalLaunch(definition.executable, process.platform, process.env,
+    id === 'omp' && ompConfigPath ? ['--config', ompConfigPath] : [])
   if (id === 'omp') launch.env = { ...launch.env, ...ompThemeEnvironment(vscode) }
   const terminal = vscode.window.createTerminal({
     name: `AIO · ${definition.label}`,
@@ -133,6 +136,9 @@ async function reportDetection(vscode) {
 }
 
 function registerLauncher(vscode, context) {
+  const ompConfigPath = context.asAbsolutePath
+    ? context.asAbsolutePath(path.join('workbench', 'service', 'aio-omp-config.yml'))
+    : path.join(context.extensionPath || '', 'workbench', 'service', 'aio-omp-config.yml')
   const register = (command, callback) => {
     const disposable = vscode.commands.registerCommand(command, callback)
     context.subscriptions.push(disposable)
@@ -140,9 +146,9 @@ function registerLauncher(vscode, context) {
 
   register('aio.openTerminal', async (uri) => {
     const id = await selectCli(vscode)
-    return id ? openCli(vscode, id, uri) : undefined
+    return id ? openCli(vscode, id, uri, id === 'omp' ? ompConfigPath : undefined) : undefined
   })
-  register('aio.openOmp', (uri) => openCli(vscode, 'omp', uri))
+  register('aio.openOmp', (uri) => openCli(vscode, 'omp', uri, ompConfigPath))
   register('aio.openClaude', (uri) => openCli(vscode, 'claude', uri))
   register('aio.openCodex', (uri) => openCli(vscode, 'codex', uri))
   register('aio.detectClis', () => reportDetection(vscode))

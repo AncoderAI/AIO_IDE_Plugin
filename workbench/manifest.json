@@ -17,6 +17,7 @@
     "ui/index.html",
     "service/workbench-service.cjs",
     "service/omp-metadata-worker.cjs",
+    "service/aio-omp-config.yml",
     "service/aio-terminal-host.exe"
   ],
   "dependencies": {
