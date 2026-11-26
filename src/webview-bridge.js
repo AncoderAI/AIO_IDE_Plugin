@@ -65,7 +65,22 @@
     }
   }
 
+  function onTerminalContextMenu(event) {
+    if (event.isTrusted !== true || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return
+    const terminal = terminalForElement(event.target)
+    if (!terminal || !terminal.isVisible() || typeof target.navigator?.clipboard?.readText !== 'function') return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    const terminalId = terminal.id
+    void target.navigator.clipboard.readText().then((text) => {
+      if (!text || activeTerminal?.id !== terminalId || !terminal.isVisible()) return
+      terminal.paste(text)
+      terminal.focus()
+    }).catch(() => undefined)
+  }
+
   target.addEventListener('keydown', onTerminalClipboardShortcut, true)
+  target.addEventListener('contextmenu', onTerminalContextMenu, true)
   target.addEventListener('focusin', (event) => {
     const terminal = terminalForElement(event.target)
     if (terminal) {

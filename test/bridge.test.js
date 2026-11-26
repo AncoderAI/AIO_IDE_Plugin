@@ -53,12 +53,13 @@ test('webview bridge correlates requests and forwards named events', async () =>
   assert.deepEqual(sent.at(-1), { type: 'aio:file-preview-ready' })
 })
 
-test('webview keeps terminal copy and paste shortcuts in the browser clipboard path', () => {
+test('webview keeps terminal copy and paste shortcuts in the browser clipboard path', async () => {
   const target = new EventEmitter()
   target.addEventListener = target.on.bind(target)
   target.dispatchEvent = (event) => { target.emit(event.type, event); return true }
   let copies = 0
   target.document = { execCommand: (command) => { if (command === 'copy') copies++; return true } }
+  target.navigator = { clipboard: { readText: async () => 'right click paste' } }
   const sent = []
   createTauriBridge({ postMessage: (message) => sent.push(message) }, target)
   const xterm = { closest: (selector) => selector === '.xterm' ? xterm : null }
@@ -92,7 +93,27 @@ test('webview keeps terminal copy and paste shortcuts in the browser clipboard p
   selected = false
   assert.deepEqual(event('c', { shiftKey: false }), { stopped: false, prevented: false })
   assert.deepEqual(event('c', { target: { closest: () => null } }), { stopped: false, prevented: false })
+  const rightClick = (extras = {}) => {
+    const state = { stopped: false, prevented: false }
+    target.emit('contextmenu', {
+      target: xterm, isTrusted: true, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false,
+      stopImmediatePropagation: () => { state.stopped = true },
+      preventDefault: () => { state.prevented = true },
+      ...extras,
+    })
+    return state
+  }
+  selected = true
+  assert.deepEqual(rightClick(), { stopped: true, prevented: true })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(pasted, 'right click paste')
+  assert.equal(copies, 1)
+  pasted = undefined
+  assert.deepEqual(rightClick({ shiftKey: true }), { stopped: false, prevented: false })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(pasted, undefined)
 
+  selected = false
   target.emit('message', { data: { type: 'aio:terminal-copy-request', id: 7 } })
   assert.deepEqual(sent.at(-1), { type: 'aio:terminal-selection', id: 7, available: true, terminalId: 'terminal-1', text: '' })
   selected = true

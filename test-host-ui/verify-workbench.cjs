@@ -172,6 +172,7 @@ async function main() {
         }
         if (process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1') {
           console.log(await require('./verify-workbench-clipboard.cjs').verifyWorkbenchClipboard(window, frame, app, project, process.execPath));
+          return;
         }
         if (process.env.AIO_TEST_KEY_ROUTING === '1') {
           console.log(await require('./verify-key-routing.cjs').verifyKeyRouting(window, frame, project));

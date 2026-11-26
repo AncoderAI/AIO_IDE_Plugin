@@ -112,7 +112,7 @@ async function pasteAndSubmit(window, app, terminal, target, value, viaContextMe
   await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), value);
   await terminal.click();
   if (viaContextMenu) {
-    await terminal.click({ button: 'right' });
+    await terminal.click({ button: 'right', modifiers: ['Shift'] });
     const item = window.getByRole('menuitem', { name: /^(粘贴|Paste)$/i });
     await item.waitFor({ state: 'visible' });
     await item.click();
@@ -123,6 +123,24 @@ async function pasteAndSubmit(window, app, terminal, target, value, viaContextMe
   assert.equal(await fs.stat(target).catch(() => null), null, 'Pasting into xterm must not submit the command.');
   await window.keyboard.press('Enter');
   await waitFor(() => fs.readFile(target, 'utf8').catch(() => undefined), 'Pasted xterm command was not submitted by Enter.');
+  assert.equal(await fs.readFile(target, 'utf8'), value);
+}
+
+async function pasteWithSingleRightClick(window, app, frame, terminal, target, value) {
+  await fs.rm(target, { force: true });
+  await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), value);
+  await selectMiddleRow(window, terminal);
+  const before = await frame.evaluate(() => window.__aioClipboardTestTerminal.getSelection());
+  assert.ok(before.length > 0, 'The right-click paste case requires an existing terminal selection.');
+  await terminal.click({ button: 'right' });
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.equal(await window.getByRole('menuitem', { name: /^(粘贴|Paste|复制|Copy)$/i }).count(), 0,
+    'Plain right-click must paste directly without opening a clipboard menu.');
+  assert.equal(await fs.stat(target).catch(() => null), null, 'Right-click paste must not submit the input.');
+  const after = await app.evaluate(({ clipboard }) => clipboard.readText());
+  assert.equal(after, value, 'Right-click with a selection must not replace the clipboard with selected terminal text.');
+  await window.keyboard.press('Enter');
+  await waitFor(() => fs.readFile(target, 'utf8').catch(() => undefined), 'Right-click paste was not submitted by Enter.');
   assert.equal(await fs.readFile(target, 'utf8'), value);
 }
 
@@ -158,16 +176,17 @@ async function verifyWorkbenchClipboard(window, initialFrame, app, project) {
 
   await selectMiddleRow(window, terminal);
   await app.evaluate(({ clipboard }) => clipboard.writeText(''));
-  await terminal.click({ button: 'right' });
+  await terminal.click({ button: 'right', modifiers: ['Shift'] });
   const copyItem = window.getByRole('menuitem', { name: /^(复制|Copy)$/i });
   await copyItem.waitFor({ state: 'visible' });
-  await copyItem.click();
-  const contextCopy = await readClipboardUntil(app, marker);
-  assert.ok(contextCopy.includes(marker), 'The xterm context-menu copy command did not copy its selection.');
+  await window.keyboard.press('Escape');
 
   await pasteAndSubmit(window, app, terminal, path.join(project, 'workbench-input-1.txt'), 'Ctrl+V 粘贴', false);
-  await pasteAndSubmit(window, app, terminal, path.join(project, 'workbench-input-2.txt'), '右键粘贴', true);
-  return { mouseSelection: true, ctrlCopy: true, ctrlPaste: true, contextCopy: true, contextPaste: true, pasteSubmitted: false };
+  await pasteWithSingleRightClick(window, app, frame, terminal, path.join(project, 'workbench-input-2.txt'), '右键直接粘贴');
+  return {
+    mouseSelection: true, ctrlCopy: true, ctrlPaste: true, shiftContextMenu: true,
+    directRightClickPaste: true, selectionDidNotOverwriteClipboard: true, pasteSubmitted: false,
+  };
 }
 
 module.exports = {
