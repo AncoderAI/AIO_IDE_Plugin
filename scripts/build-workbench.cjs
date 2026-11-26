@@ -95,7 +95,57 @@ async function buildUi() {
               transformed = transformed.replace(legacyPanels,
                 'const sidebarVisible = true\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen')
             }
+            const legacyView = "const [view, setView] = useState<WorkspaceView>('session')"
+            if (transformed.includes(legacyView)) {
+              transformed = transformed.replace(legacyView, `const [pageHistory, setPageHistory] = useState<Exclude<WorkspaceView, 'session'>[]>([])
+  const view: WorkspaceView = pageHistory.at(-1) ?? 'session'
+  const setView = useCallback((nextView: WorkspaceView) => {
+    setPageHistory((history) => {
+      if (nextView === 'session') return history.length ? [] : history
+      return history.at(-1) === nextView ? history : [...history, nextView]
+    })
+  }, [])
+  const closePage = useCallback(() => setPageHistory((history) => history.slice(0, -1)), [])`)
+              const toolbar = 'onToggleInspector={toggleInspector} onToggleTerminal={toggleTerminal} platform={platform}'
+              if (!transformed.includes(toolbar)) throw new Error('AIO App page-close toolbar anchor changed')
+              transformed = transformed.replace(toolbar,
+                'onToggleInspector={toggleInspector} onToggleTerminal={toggleTerminal} onClosePage={closePage} platform={platform}')
+            }
+            const sessionBranch = "{view === 'session' ? <main className="
+            if (transformed.includes(sessionBranch)) {
+              transformed = transformed
+                .replace(sessionBranch,
+                  "<main hidden={view !== 'session'} inert={view !== 'session' ? true : undefined} className=")
+                .replace('</main> : <div className="workbench-page"><Suspense fallback={<LoadingPanel label={view} />}>{page}</Suspense></div>}',
+                  '</main>\n          {view !== \'session\' ? <div className="workbench-page"><Suspense fallback={<LoadingPanel label={view} />}>{page}</Suspense></div> : null}')
+            }
+            const legacyTerminal = 'const terminalOpen = Boolean(activeTerminalGroup && hiddenTerminalProject !== terminalProjectKey)\n  const compactTerminalWorkspace'
+            if (transformed.includes(legacyTerminal)) {
+              transformed = transformed
+                .replace(legacyTerminal,
+                  "const terminalOpen = Boolean(activeTerminalGroup && hiddenTerminalProject !== terminalProjectKey)\n  const terminalVisible = terminalOpen && view === 'session'\n  const compactTerminalWorkspace")
+                .replace('terminalOpen, terminalCompact:', 'terminalOpen: terminalVisible, terminalCompact:')
+                .replace('if (!terminalOpen || !terminalOwnsKeyboard.current', 'if (!terminalVisible || !terminalOwnsKeyboard.current')
+                .replace('fallback={terminalOpen ? <TerminalLoadingPanel /> : null}', 'fallback={terminalVisible ? <TerminalLoadingPanel /> : null}')
+                .replace('const visible = isCurrent && terminalOpen', 'const visible = isCurrent && terminalVisible')
+                .replace('terminalOpen={terminalOpen}', 'terminalOpen={terminalVisible}')
+            }
             return transformed
+          }
+          if (normalized.endsWith('/src/components/TitleToolbar.tsx')) {
+            if (source.includes('onClosePage')) return source
+            const terminalImport = '  Terminal,\n}'
+            const terminalProp = '  onToggleTerminal(): void\n'
+            const signature = 'onToggleSidebar, onToggleInspector, onToggleTerminal, platform'
+            const lastAction = '{view !== \'session\' && sidebarOpen ? <IconButton label={t(\'layout.hideSidebar\', { shortcut: sidebarShortcut })} onClick={onToggleSidebar}><PanelLeft size={16} /></IconButton> : null}'
+            if (![terminalImport, terminalProp, signature, lastAction].every((anchor) => source.includes(anchor))) {
+              throw new Error('AIO TitleToolbar page-close anchors changed')
+            }
+            return source
+              .replace(terminalImport, '  Terminal,\n  X,\n}')
+              .replace(terminalProp, terminalProp + '  onClosePage(): void\n')
+              .replace(signature, 'onToggleSidebar, onToggleInspector, onToggleTerminal, onClosePage, platform')
+              .replace(lastAction, lastAction + "\n        {view !== 'session' ? <IconButton label=\"返回上一界面\" onClick={onClosePage}><X size={17} /></IconButton> : null}")
           }
           if (!normalized.endsWith('/src/components/TerminalDrawer.tsx')) return
           const constructor = 'const terminal = new Terminal({'
@@ -216,14 +266,56 @@ function patchGeneratedTerminalClipboard() {
   const mainSource = readFileSync(mainChunk, 'utf8')
   const keyboard = 'Hn=rs(u=>{!Ne||u.defaultPrevented'
   const ownedKeyboard = 'Hn=rs(u=>{!Ne||!Ge.current||u.defaultPrevented'
-  const routed = mainSource.includes(ownedKeyboard) ? mainSource : mainSource.replace(keyboard, ownedKeyboard)
+  const ownedVisibleKeyboard = 'Hn=rs(u=>{!AIOVisibleTerminal||!Ge.current||u.defaultPrevented'
+  const routed = mainSource.includes(ownedKeyboard) || mainSource.includes(ownedVisibleKeyboard)
+    ? mainSource : mainSource.replace(keyboard, ownedKeyboard)
   const legacyPanels = 'bt=te.sidebarOpen&&!He.sidebarSuppressed,Rt=te.inspectorOpen&&!He.inspectorSuppressed'
   const floatingPanels = 'bt=!0,Rt=te.inspectorOpen'
   const panels = routed.includes(floatingPanels) ? routed : routed.replace(legacyPanels, floatingPanels)
-  if (!panels.includes(ownedKeyboard) || !panels.includes(floatingPanels)) {
+  const legacyView = '[Y,V]=r.useState("session"),[J,ne]'
+  const stackedView = '[AIOPageHistory,AIOSetPageHistory]=r.useState([]),Y=AIOPageHistory.at(-1)??"session",V=r.useCallback(u=>{AIOSetPageHistory(T=>u==="session"?T.length?[]:T:T.at(-1)===u?T:[...T,u])},[]),AIOClosePage=r.useCallback(()=>AIOSetPageHistory(u=>u.slice(0,-1)),[]),[J,ne]'
+  let pages = panels.includes(stackedView) ? panels : panels.replace(legacyView, stackedView)
+  if (!pages.includes(stackedView)) {
+    const historyStart = pages.indexOf('[AIOPageHistory,AIOSetPageHistory]')
+    const historyEnd = pages.indexOf(',[J,ne]', historyStart)
+    if (historyStart >= 0 && historyEnd > historyStart) {
+      pages = pages.slice(0, historyStart) + stackedView + pages.slice(historyEnd + ',[J,ne]'.length)
+    }
+  }
+  const conditionalSession = 'Y==="session"?n.jsx("main",{className:'
+  const persistentSession = 'n.jsx("main",{hidden:Y!=="session",inert:Y!=="session"?!0:void 0,className:'
+  pages = pages.includes(persistentSession) ? pages : pages.replace(conditionalSession, persistentSession)
+  const conditionalPage = '})}):n.jsx("div",{className:"workbench-page",children:n.jsx(r.Suspense,{fallback:n.jsx(xn,{label:Y}),children:La})})'
+  const siblingPage = '})}),Y!=="session"?n.jsx("div",{className:"workbench-page",children:n.jsx(r.Suspense,{fallback:n.jsx(xn,{label:Y}),children:La})}):null'
+  pages = pages.includes(siblingPage) ? pages : pages.replace(conditionalPage, siblingPage)
+  const legacyToolbar = 'function Zo({project:e,view:t,productName:s="Prime Work",sidebarOpen:a,inspectorOpen:i,terminalOpen:d,onToggleSidebar:l,onToggleInspector:p,onToggleTerminal:c,platform:k="darwin"})'
+  const closeToolbar = 'function Zo({project:e,view:t,productName:s="Prime Work",sidebarOpen:a,inspectorOpen:i,terminalOpen:d,onToggleSidebar:l,onToggleInspector:p,onToggleTerminal:c,onClosePage:AIOClosePageProp,platform:k="darwin"})'
+  pages = pages.includes(closeToolbar) ? pages : pages.replace(legacyToolbar, closeToolbar)
+  const legacyToolbarActions = 't!=="session"&&a?n.jsx(et,{label:j("layout.hideSidebar",{shortcut:y}),onClick:l,children:n.jsx(qs,{size:16})}):null]})]})'
+  const closeToolbarActions = 't!=="session"&&a?n.jsx(et,{label:j("layout.hideSidebar",{shortcut:y}),onClick:l,children:n.jsx(qs,{size:16})}):null,t!=="session"?n.jsx("button",{type:"button",className:"icon-button icon-button--regular aio-close-subpage","aria-label":"返回上一界面",title:"返回上一界面",onClick:AIOClosePageProp,children:"×"}):null]})]})'
+  pages = pages.includes(closeToolbarActions) ? pages : pages.replace(legacyToolbarActions, closeToolbarActions)
+  const legacyToolbarCall = 'onToggleSidebar:Ct,onToggleInspector:On,onToggleTerminal:pn,platform:pt'
+  const closeToolbarCall = 'onToggleSidebar:Ct,onToggleInspector:On,onToggleTerminal:pn,onClosePage:AIOClosePage,platform:pt'
+  pages = pages.includes(closeToolbarCall) ? pages : pages.replace(legacyToolbarCall, closeToolbarCall)
+  const legacyTerminal = 'Ne=!!(At&&tn!==Oe),Tt=Ne&&!x.loadingSession'
+  const sessionTerminal = 'Ne=!!(At&&tn!==Oe),AIOVisibleTerminal=Ne&&Y==="session",Tt=Ne&&!x.loadingSession'
+  pages = pages.includes(sessionTerminal) ? pages : pages.replace(legacyTerminal, sessionTerminal)
+  pages = pages
+    .replace('terminalOpen:Ne,terminalCompact:Tt', 'terminalOpen:AIOVisibleTerminal,terminalCompact:Tt')
+    .replace('Hn=rs(u=>{!Ne||!Ge.current||u.defaultPrevented', 'Hn=rs(u=>{!AIOVisibleTerminal||!Ge.current||u.defaultPrevented')
+    .replace('onPointerDownCapture:u=>{Ge.current=Ne&&', 'onPointerDownCapture:u=>{Ge.current=AIOVisibleTerminal&&')
+    .replace('onFocusCapture:u=>{!Ne||', 'onFocusCapture:u=>{!AIOVisibleTerminal||')
+    .replace('fallback:Ne?n.jsx(uu,{})', 'fallback:AIOVisibleTerminal?n.jsx(uu,{})')
+    .replace('be=W&&Ne;return n.jsx(Vc', 'be=W&&AIOVisibleTerminal;return n.jsx(Vc')
+    .replace('terminalOpen:Ne,onToggleSidebar:Ct', 'terminalOpen:AIOVisibleTerminal,onToggleSidebar:Ct')
+  if (!pages.includes(ownedVisibleKeyboard) || !pages.includes(floatingPanels)
+    || !pages.includes(stackedView) || !pages.includes(closeToolbar)
+    || !pages.includes(closeToolbarActions) || !pages.includes(closeToolbarCall)
+    || !pages.includes(sessionTerminal) || !pages.includes('be=W&&AIOVisibleTerminal')
+    || !pages.includes(persistentSession) || !pages.includes(siblingPage)) {
     throw new Error('Generated AIO keyboard or panel routing anchor changed')
   }
-  writeFileSync(mainChunk, panels)
+  writeFileSync(mainChunk, pages)
 }
 
 async function buildService() {

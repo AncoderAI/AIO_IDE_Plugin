@@ -154,6 +154,10 @@ async function main() {
           console.log(await require('./verify-project-import.cjs').verifyProjectImport(frame, project, importedProject));
           return;
         }
+        if (process.env.AIO_TEST_PAGE_BACK === '1') {
+          console.log(await require('./verify-page-back.cjs').verifyPageBack(window, frame));
+          return;
+        }
         await require('./verify-split.cjs').verifySplit(window, frame);
         if (process.env.AIO_TEST_FILE_DROP === '1') {
           console.log(await require('./verify-drop.cjs').verifyDrop(window, frame, project));

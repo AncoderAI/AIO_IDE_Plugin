@@ -39,6 +39,7 @@
     const mountRequested = new Set()
     let sidebarWasMounted = false
     let inspectorWasMounted = false
+    let pagePinned = false
     let previewReady = false
 
     const edge = (side) => {
@@ -121,7 +122,7 @@
 
     const hide = (side) => {
       if (side === 'left') {
-        if (!introElapsed || leftInside || leftKeyboardInside) return
+        if (pagePinned || !introElapsed || leftInside || leftKeyboardInside) return
         leftVisible = false
       } else {
         if (rightInside || rightKeyboardInside) return
@@ -170,6 +171,12 @@
       if (workbench?.hasAttribute('inert')) workbench.removeAttribute('inert')
       const nextSidebar = app.querySelector(':scope > .sidebar')
       const nextInspector = app.querySelector('.inspector')
+      const nextPagePinned = Boolean(app.querySelector('.workbench-page'))
+      if (nextPagePinned) leftVisible = true
+      else if (pagePinned) {
+        if (introElapsed && !leftInside && !leftKeyboardInside) leftVisible = false
+      }
+      pagePinned = nextPagePinned
       if (sidebarWasMounted && !nextSidebar && introElapsed) leftVisible = false
       if (inspectorWasMounted && !nextInspector) rightVisible = false
       sidebar = nextSidebar
@@ -263,7 +270,7 @@
     root.addEventListener('pointerout', (event) => {
       if (!event.relatedTarget) leaveWorkbench()
     }, true)
-    root.addEventListener('pointerdown', () => {
+    root.addEventListener('pointerdown', (event) => {
       keyboardNavigation = false
       interactionGeneration++
     }, true)
@@ -287,7 +294,8 @@
       const relevant = records.some((record) => record.type === 'attributes'
         || [...record.addedNodes, ...record.removedNodes].some((node) => node.nodeType === 1
           && (node.matches?.('.app-shell, .sidebar, .inspector, .workbench, .title-toolbar')
-            || node.querySelector?.('.app-shell, .sidebar, .inspector, .workbench, .title-toolbar'))))
+            || node.matches?.('.workbench-page')
+            || node.querySelector?.('.app-shell, .sidebar, .inspector, .workbench, .workbench-page, .title-toolbar'))))
       if (relevant) refresh()
     })
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['inert'] })

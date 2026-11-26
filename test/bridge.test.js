@@ -24,6 +24,10 @@ test('generated xterm chunk exposes only the scoped clipboard capability', () =>
   const main = fs.readdirSync(assets).find((name) => /^main-.*\.js$/.test(name))
   assert.ok(main)
   assert.match(fs.readFileSync(path.join(assets, main), 'utf8'), /!Ge\.current\|\|u\.defaultPrevented/)
+  const mainSource = fs.readFileSync(path.join(assets, main), 'utf8')
+  assert.match(mainSource, /AIOPageHistory/)
+  assert.equal((mainSource.match(/aio-close-subpage/g) || []).length, 1)
+  assert.match(mainSource, /AIOVisibleTerminal/)
 })
 
 test('webview bridge correlates requests and forwards named events', async () => {
