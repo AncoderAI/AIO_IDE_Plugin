@@ -14,7 +14,7 @@ body:has(.app-shell) {
   transition: margin-left 300ms ease-out;
 }
 
-.app-shell.aio-auto-hide-panels:has(> .sidebar:not(.aio-panel-hidden)) > .workbench > .workbench__content {
+.app-shell.aio-auto-hide-panels:has(> :is(.sidebar, .auto-hide-panel--sidebar):not(.aio-panel-hidden)) > .workbench > .workbench__content {
   margin-left: var(--aio-project-panel-width);
 }
 
@@ -43,8 +43,8 @@ body:has(.app-shell) {
   overflow: auto;
 }
 
-.app-shell.aio-auto-hide-panels > .sidebar,
-.app-shell.aio-auto-hide-panels .inspector {
+.app-shell.aio-auto-hide-panels > :is(.sidebar, .auto-hide-panel--sidebar),
+.app-shell.aio-auto-hide-panels :is(.inspector, .auto-hide-panel--inspector) {
   position: fixed !important;
   z-index: 80 !important;
   margin: 0 !important;
@@ -53,7 +53,7 @@ body:has(.app-shell) {
   visibility: visible;
 }
 
-.app-shell.aio-auto-hide-panels > .sidebar {
+.app-shell.aio-auto-hide-panels > :is(.sidebar, .auto-hide-panel--sidebar) {
   inset: 0 auto 0 0 !important;
   width: var(--aio-project-panel-width) !important;
   height: 100% !important;
@@ -63,7 +63,7 @@ body:has(.app-shell) {
   backdrop-filter: blur(16px);
 }
 
-.app-shell.aio-auto-hide-panels .inspector {
+.app-shell.aio-auto-hide-panels :is(.inspector, .auto-hide-panel--inspector) {
   inset: 52px 0 0 auto !important;
   width: min(var(--inspector-width, 520px), calc(100vw - 20px)) !important;
   min-width: 0 !important;
@@ -74,21 +74,33 @@ body:has(.app-shell) {
   backdrop-filter: blur(16px);
 }
 
-.app-shell.aio-auto-hide-panels > .sidebar.aio-panel-hidden {
+.app-shell.aio-auto-hide-panels > :is(.sidebar, .auto-hide-panel--sidebar).aio-panel-hidden {
   transform: translateX(calc(-100% - 16px));
 }
 
-.app-shell.aio-auto-hide-panels .inspector.aio-panel-hidden {
+.app-shell.aio-auto-hide-panels :is(.inspector, .auto-hide-panel--inspector).aio-panel-hidden {
   transform: translateX(calc(100% + 16px));
 }
 
-.app-shell.aio-auto-hide-panels .aio-panel-hidden {
-  opacity: 0;
+.app-shell.aio-auto-hide-panels :is(.sidebar, .auto-hide-panel--sidebar, .inspector, .auto-hide-panel--inspector).aio-panel-hidden {
+  opacity: 0 !important;
   background: transparent !important;
   backdrop-filter: none;
-  visibility: hidden;
+  visibility: hidden !important;
   pointer-events: none;
   transition-delay: 0s, 0s, 300ms;
+}
+
+.app-shell.aio-auto-hide-panels > .auto-hide-panel--sidebar > .sidebar,
+.app-shell.aio-auto-hide-panels .auto-hide-panel--inspector > .inspector {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
 }
 
 .aio-panel-toggle-left,

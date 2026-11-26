@@ -257,8 +257,8 @@
       }
       const workbench = app.querySelector(':scope > .workbench')
       if (workbench?.hasAttribute('inert')) workbench.removeAttribute('inert')
-      const nextSidebar = app.querySelector(':scope > .sidebar')
-      const nextInspector = app.querySelector('.inspector')
+      const nextSidebar = app.querySelector(':scope > .auto-hide-panel--sidebar, :scope > .sidebar')
+      const nextInspector = app.querySelector('.auto-hide-panel--inspector, .inspector')
       const nextPagePinned = Boolean(app.querySelector('.workbench-page'))
       if (nextPagePinned) leftVisible = true
       else if (pagePinned) {

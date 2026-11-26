@@ -10,7 +10,7 @@ const test = require('node:test')
 const { createTauriBridge } = require('../src/webview-bridge')
 const { WorkbenchHost, WorkbenchService, externalNodeCandidates, renderWorkbenchHtml, resolveNodeRuntime, validWebviewRequest, versionAtLeast } = require('../src/workbench')
 
-test('generated xterm chunk exposes only the scoped clipboard capability', () => {
+test('generated workbench contains scoped terminal capabilities and Bot UI', () => {
   const assets = path.resolve(__dirname, '../workbench/ui/assets')
   const chunk = fs.readdirSync(assets).find((name) => /^TerminalDrawer-.*\.js$/.test(name))
   assert.ok(chunk)
@@ -23,11 +23,11 @@ test('generated xterm chunk exposes only the scoped clipboard capability', () =>
   assert.match(source, /document\.hasFocus\(\)&&/)
   const main = fs.readdirSync(assets).find((name) => /^main-.*\.js$/.test(name))
   assert.ok(main)
-  assert.match(fs.readFileSync(path.join(assets, main), 'utf8'), /!Ge\.current\|\|u\.defaultPrevented/)
   const mainSource = fs.readFileSync(path.join(assets, main), 'utf8')
-  assert.match(mainSource, /AIOPageHistory/)
+  assert.match(mainSource, /!\w+\|\|!\w+\.current\|\|\w+\.defaultPrevented/)
   assert.equal((mainSource.match(/aio-close-subpage/g) || []).length, 1)
-  assert.match(mainSource, /AIOVisibleTerminal/)
+  assert.match(mainSource, /bot-selector/)
+  for (const label of ['OMP Bot', 'Claude Code Bot', 'Codex Bot']) assert.ok(mainSource.includes(label))
 })
 
 test('webview bridge correlates requests and forwards named events', async () => {

@@ -13,7 +13,7 @@ test('bundled service records and contains the compatible CLI changes from the s
   const service = fs.readFileSync(path.join(root, 'workbench', 'service', 'workbench-service.cjs'), 'utf8');
 
   assert.ok(manifest.syncedUpstreamCommits.includes(EXPECTED_COMMIT));
-  assert.deepEqual(manifest.syncedUpstreamFeatures, [
+  assert.deepEqual(manifest.syncedUpstreamFeatures.slice(0, 3), [
     'windows-claude-discovery',
     'coding-cli-executable-metadata',
     'coding-cli-configured-executable',
@@ -32,7 +32,8 @@ test('bundled service records and contains the compatible CLI changes from the s
     'executableSource:',
   ]) assert.ok(service.includes(evidence), `Missing bundled upstream evidence: ${evidence}`);
 
-  for (const excluded of ['BotControlService', 'AIO_BOT_CAPABILITY', 'bot:terminal-created']) {
-    assert.equal(service.includes(excluded), false, `Unrelated later upstream feature was bundled: ${excluded}`);
+  assert.ok(manifest.syncedUpstreamCommits.includes('561bc25d4aeeec8310ab279e52e997b0f3ad1988'));
+  for (const evidence of ['BotControlService', 'AIO_BOT_CAPABILITY', 'bot:terminal-created']) {
+    assert.ok(service.includes(evidence), 'Missing bundled Bot evidence: ' + evidence);
   }
 });

@@ -184,6 +184,8 @@ test('registers all public commands and starts a configured CLI terminal', async
   await callbacks.get('aio.openCodex')()
   assert.equal(terminals[1].options.env, undefined)
   assert.equal(terminals[2].options.env, undefined)
+  assert.deepEqual(terminals[1].options.shellArgs, [])
+  assert.deepEqual(terminals[2].options.shellArgs, ['-c', 'disable_paste_burst=true'])
 })
 
 test('OMP receives only a theme fallback matching the active VS Code appearance', () => {

@@ -3,12 +3,15 @@
   "sourceVersion": "2.0.1",
   "sourceHead": "def7f85df4ccff835aac67e3c2a5eb431c356d29",
   "syncedUpstreamCommits": [
-    "492adf86872f0bb05723e67a8290690c7baf506c"
+    "492adf86872f0bb05723e67a8290690c7baf506c",
+    "561bc25d4aeeec8310ab279e52e997b0f3ad1988"
   ],
   "syncedUpstreamFeatures": [
     "windows-claude-discovery",
     "coding-cli-executable-metadata",
-    "coding-cli-configured-executable"
+    "coding-cli-configured-executable",
+    "aio-bot-control",
+    "codex-terminal-submission"
   ],
   "nodeTarget": "24",
   "platform": "win32",
@@ -18,7 +21,8 @@
     "service/workbench-service.cjs",
     "service/omp-metadata-worker.cjs",
     "service/aio-omp-config.yml",
-    "service/aio-terminal-host.exe"
+    "service/aio-terminal-host.exe",
+    "service/aio-bot-cli.cjs"
   ],
   "dependencies": {
     "npm": [

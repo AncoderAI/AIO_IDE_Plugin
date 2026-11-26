@@ -22,12 +22,16 @@ const licenseOutput = join(outputRoot, 'licenses')
 const dependencyRoots = new Set()
 const syncedUpstreamCommits = Object.freeze([
   '492adf86872f0bb05723e67a8290690c7baf506c',
+  '561bc25d4aeeec8310ab279e52e997b0f3ad1988',
 ])
 const syncedUpstreamFeatures = Object.freeze([
   'windows-claude-discovery',
   'coding-cli-executable-metadata',
   'coding-cli-configured-executable',
+  'aio-bot-control',
+  'codex-terminal-submission',
 ])
+const botSourceCommit = '561bc25d4aeeec8310ab279e52e997b0f3ad1988'
 
 function requireFile(path, description) {
   if (!existsSync(path) || !statSync(path).isFile()) {
@@ -106,12 +110,28 @@ async function buildUi() {
         name: 'aio-terminal-input-contrast',
         enforce: 'pre',
         transform(source, id) {
+          source = source.replaceAll('\r\n', '\n')
           const normalized = id.replaceAll('\\', '/')
           if (normalized.endsWith('/src/App.tsx')) {
             const keyboard = 'if (!terminalOpen || event.defaultPrevented || event.isComposing || isOverlayOpen()) return'
-            if (!source.includes(keyboard)) throw new Error('AIO App terminal keyboard anchor changed')
-            let transformed = source.replace(keyboard,
-              'if (!terminalOpen || !terminalOwnsKeyboard.current || event.defaultPrevented || event.isComposing || isOverlayOpen()) return')
+            const currentKeyboard = 'if (!terminalVisible || event.defaultPrevented || event.isComposing || isOverlayOpen()) return'
+            if (!source.includes(keyboard) && !source.includes(currentKeyboard)
+              && !source.includes('if (!terminalVisible || !terminalOwnsKeyboard.current')) {
+              throw new Error('AIO App terminal keyboard anchor changed')
+            }
+            let transformed = source
+              .replace(keyboard,
+                'if (!terminalOpen || !terminalOwnsKeyboard.current || event.defaultPrevented || event.isComposing || isOverlayOpen()) return')
+              .replace(currentKeyboard,
+                'if (!terminalVisible || !terminalOwnsKeyboard.current || event.defaultPrevented || event.isComposing || isOverlayOpen()) return')
+            if (transformed.includes('const autoHidePanels = codingSelectorAvailable')) {
+              transformed = transformed
+                .replace('const autoHidePanels = codingSelectorAvailable', 'const autoHidePanels = false')
+                .replace("const sidebarVisible = autoHidePanels ? sidebarPinned || sidebarVisibility !== 'hidden' : settingsState.sidebarOpen && !layout.sidebarSuppressed",
+                  'const sidebarVisible = true')
+                .replace("const inspectorVisible = view === 'session' && (autoHidePanels ? inspectorRevealed : settingsState.inspectorOpen && !layout.inspectorSuppressed)",
+                  "const inspectorVisible = view === 'session'")
+            }
             const legacyPanels = 'const sidebarVisible = settingsState.sidebarOpen && !layout.sidebarSuppressed\n  const inspectorVisible = view === \'session\' && settingsState.inspectorOpen && !layout.inspectorSuppressed'
             if (transformed.includes(legacyPanels)) {
               transformed = transformed.replace(legacyPanels,
@@ -155,7 +175,12 @@ async function buildUi() {
             return transformed
           }
           if (normalized.endsWith('/src/components/TitleToolbar.tsx')) {
-            if (source.includes('onClosePage')) return source
+            if (source.includes('onClosePage')) {
+              return source.replace(
+                "<IconButton label={t('layout.closePage')} onClick={onClosePage}>",
+                "<IconButton className=\"aio-close-subpage\" label={t('layout.closePage')} onClick={onClosePage}>",
+              )
+            }
             const terminalImport = '  Terminal,\n}'
             const terminalProp = '  onToggleTerminal(): void\n'
             const signature = 'onToggleSidebar, onToggleInspector, onToggleTerminal, platform'
@@ -350,11 +375,20 @@ async function buildService() {
     join(sourceRoot, 'node_modules', 'prime-agent-ai', 'dist', 'index.js'),
     'prime-agent-ai entry point',
   )
+  const exactRoot = mkdtempSync(join(tmpdir(), 'aio-bot-source-'))
+  const archive = join(exactRoot, 'source.tar')
+  run('git', ['-C', sourceRoot, 'archive', '--format=tar', `--output=${archive}`, botSourceCommit])
+  run('tar', ['-xf', archive, '-C', exactRoot])
+  const exactSpike = join(exactRoot, 'research', 'tauri-spike')
+  const botSkill = readFileSync(requireFile(join(exactRoot, 'assets', 'omp-skills', 'skills', 'aio-bot', 'SKILL.md'), 'AIO Bot skill'), 'utf8')
+    .replace(/^---[\s\S]*?---\s*/, '')
+  try {
   const result = await esbuild.build({
-    entryPoints: [
-      requireFile(join(spikeRoot, 'workbench-service.ts'), 'Tauri workbench service'),
-      requireFile(join(spikeRoot, 'omp-metadata-worker.ts'), 'OMP metadata worker'),
-    ],
+    entryPoints: {
+      'workbench-service': requireFile(join(exactSpike, 'workbench-service.ts'), 'Tauri Bot workbench service'),
+      'omp-metadata-worker': requireFile(join(exactSpike, 'omp-metadata-worker.ts'), 'OMP metadata worker'),
+      'aio-bot-cli': requireFile(join(exactSpike, 'bot-cli.ts'), 'AIO Bot controller CLI'),
+    },
     outdir: serviceOutput,
     outExtension: { '.js': '.cjs' },
     bundle: true,
@@ -362,7 +396,39 @@ async function buildService() {
     platform: 'node',
     target: 'node24',
     format: 'cjs',
+    nodePaths: [join(sourceRoot, 'node_modules')],
+    define: { AIO_BOT_SKILL_TEXT: JSON.stringify(botSkill) },
     plugins: [{
+      name: 'aio-bot-worker-codex-paste-mode',
+      setup(build) {
+        build.onLoad({ filter: /research[\\/]tauri-spike[\\/]workbench-service\.ts$/ }, (args) => {
+          let source = readFileSync(args.path, 'utf8')
+          const codexState = "codex: { ready: ['Ask Codex to do anything', 'esc to edit previous message'], busy: ['esc to interrupt'] }"
+          const currentCodexState = "codex: { ready: ['Ask Codex', 'Worked for ', 'esc to edit previous message'], busy: ['Working(', 'esc to interrupt'] }"
+          if (!source.includes(codexState)) throw new Error('AIO Bot Codex editor state anchor changed')
+          source = source.replace(codexState, currentCodexState)
+          const worker = 'launch.env = environment as Record<string, string>'
+          const configured = `// Bot-driven Codex tasks use explicit bracketed paste. Keep Codex's native
+        // paste handling so CR separators stay inside the draft until final Enter.
+        if (agent === 'codex' && launch.args[0] === '-c' && launch.args[1] === 'disable_paste_burst=true') launch.args.splice(0, 2)
+        ${worker}`
+          if (!source.includes(worker)) throw new Error('AIO Bot worker launch anchor changed')
+          source = source.replace(worker, configured)
+          return { contents: source, loader: 'ts' }
+        })
+        build.onLoad({ filter: /electron[\\/]main[\\/]terminal\.ts$/ }, (args) => {
+          let source = readFileSync(args.path, 'utf8')
+          const normalized = "const normalized = text.replace(/\\r\\n?|\\n/g, '\\r')"
+          const guarded = `${normalized}
+    if (terminal.agent === 'codex' && normalized.includes('\\r')) {
+      throw new TypeError('Codex follow-up tasks must be single-line; create a fresh Codex worker with create codex --stdin for a multiline task')
+    }`
+          if (!source.includes(normalized)) throw new Error('AIO Bot terminal multiline guard anchor changed')
+          source = source.replace(normalized, guarded)
+          return { contents: source, loader: 'ts' }
+        })
+      },
+    }, {
       name: 'omp-model-metadata',
       setup(build) {
         build.onResolve({ filter: /^prime-agent-ai$/ }, ({ importer }) => {
@@ -375,6 +441,9 @@ async function buildService() {
     logLevel: 'info',
   })
   for (const path of Object.keys(result.metafile.inputs)) trackDependency(resolve(path))
+  } finally {
+    rmSync(exactRoot, { recursive: true, force: true })
+  }
 }
 
 function disableOmpComposerPredictions() {
@@ -503,6 +572,7 @@ function writeManifest(dependencies) {
       'ui/index.html',
       'service/workbench-service.cjs',
       'service/omp-metadata-worker.cjs',
+      'service/aio-bot-cli.cjs',
       'service/aio-omp-config.yml',
       ...(process.platform === 'win32' ? ['service/aio-terminal-host.exe'] : []),
     ],
@@ -511,14 +581,16 @@ function writeManifest(dependencies) {
   require('node:fs').writeFileSync(join(outputRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 }
 
-function setDefaultTheme() {
+function setDefaultTheme(uiOnly = false) {
   const assets = join(uiOutput, 'assets')
   const main = readdirSync(assets).find(name => /^main-.*\.js$/.test(name))
   const files = [
     [join(uiOutput, 'index.html'), /<html lang="en"(?: data-theme="[^"]*")?>/, '<html lang="en" data-theme="dark">'],
     [join(assets, main), /theme:"(?:dark|system|light)",locale:"zh-CN"/, 'theme:"dark",locale:"zh-CN"'],
-    [join(serviceOutput, 'workbench-service.cjs'), /theme: "(?:system|dark|light)",(\s+locale: "zh-CN")/, 'theme: "dark",$1'],
   ]
+  if (!uiOnly) files.push([
+    join(serviceOutput, 'workbench-service.cjs'), /theme: "(?:system|dark|light)",(\s+locale: "zh-CN")/, 'theme: "dark",$1',
+  ])
   for (const [filename, pattern, replacement] of files) {
     const source = readFileSync(filename, 'utf8')
     if (!pattern.test(source)) throw new Error('Missing default theme declaration in ' + filename)
@@ -526,11 +598,34 @@ function setDefaultTheme() {
   }
 }
 
+function updateBotManifest() {
+  const filename = join(outputRoot, 'manifest.json')
+  const manifest = JSON.parse(readFileSync(filename, 'utf8'))
+  manifest.syncedUpstreamCommits = [...new Set([...(manifest.syncedUpstreamCommits || []), botSourceCommit])]
+  manifest.syncedUpstreamFeatures = [...new Set([...(manifest.syncedUpstreamFeatures || []), 'aio-bot-control', 'codex-terminal-submission'])]
+  manifest.generated = [...new Set([...(manifest.generated || []), 'service/aio-bot-cli.cjs'])]
+  writeFileSync(filename, `${JSON.stringify(manifest, null, 2)}\n`)
+}
+
 async function main() {
   requireFile(join(sourceRoot, 'package.json'), 'AIO package')
   verifySyncedUpstreamFeatures()
   if (process.argv.includes('--verify-synced-upstream')) return
+  if (process.argv.includes('--ui-only')) {
+    mkdirSync(outputRoot, { recursive: true })
+    await buildUi()
+    setDefaultTheme(true)
+    console.log(`AIO workbench UI assets built in ${uiOutput}`)
+    return
+  }
   if (process.argv.includes('--set-default-theme')) return setDefaultTheme()
+  if (process.argv.includes('--bot-service-only')) {
+    await buildService()
+    disableOmpComposerPredictions()
+    setDefaultTheme()
+    updateBotManifest()
+    return
+  }
   if (process.argv.includes('--patch-terminal-clipboard')) {
     patchGeneratedTerminalClipboard()
     return

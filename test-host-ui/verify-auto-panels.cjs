@@ -33,9 +33,9 @@ async function verifyAutoPanels(window, frame, app) {
   const root = frame.locator('#root');
   const workbench = frame.locator('.workbench');
   const workbenchContent = frame.locator('.workbench__content');
-  const sidebar = frame.locator('.sidebar').last();
+  const sidebar = frame.locator('.auto-hide-panel--sidebar, .app-shell > .sidebar').first();
   const sidebarTrigger = frame.locator('.aio-panel-toggle-left').first();
-  const inspector = frame.locator('.inspector').last();
+  const inspector = frame.locator('.auto-hide-panel--inspector, .app-shell .inspector').first();
   const inspectorTrigger = frame.locator('.aio-panel-toggle-right').first();
   const input = frame.locator('.composer textarea:not([disabled]), .coding-cli-composer textarea:not([disabled])').first();
 
@@ -46,6 +46,8 @@ async function verifyAutoPanels(window, frame, app) {
       theme: document.documentElement.dataset,
       shellChildren: [...(document.querySelector('.app-shell')?.children || [])].map(element => element.className),
       sidebarClasses: [...document.querySelectorAll('[class*="sidebar"]')].map(element => element.className).slice(0, 20),
+      sidebarWrapper: document.querySelector('.auto-hide-panel--sidebar')?.className,
+      pages: document.querySelectorAll('.workbench-page').length,
     }));
     throw new Error('Initial sidebar is unavailable: ' + JSON.stringify(diagnostic));
   }
@@ -78,6 +80,8 @@ async function verifyAutoPanels(window, frame, app) {
       installed: document.documentElement.dataset.aioAutoHidePanels,
       shell: document.querySelector('.app-shell')?.className,
       sidebar: document.querySelector('.sidebar')?.className,
+      sidebarWrapper: document.querySelector('.auto-hide-panel--sidebar')?.className,
+      pages: document.querySelectorAll('.workbench-page').length,
       active: document.activeElement?.outerHTML?.slice(0, 200),
     }));
     throw new Error(error.message + ': ' + JSON.stringify(state));

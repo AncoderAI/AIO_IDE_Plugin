@@ -69,6 +69,7 @@ async function main() {
   await fs.mkdir(importedProject);
   for (const file of ['first.txt', 'second.txt']) await fs.writeFile(path.join(project, file), file);
   let app;
+  let codexFixture;
   let restoreClipboard = async () => {};
   try {
     if (clipboardTest) restoreClipboard = await preserveWindowsClipboard(root);
@@ -93,6 +94,10 @@ async function main() {
     }
     const env = { ...process.env, AIO_TEST_PROJECT_IMPORT_PATH: importedProject };
     delete env.ELECTRON_RUN_AS_NODE;
+    if (process.env.AIO_TEST_CODEX_SUBMISSION_EXE) {
+      codexFixture = await require('./verify-codex-submission.cjs').createCodexFixture(
+        path.join(root, 'codex-submission'), project, process.env.AIO_TEST_CODEX_SUBMISSION_EXE, env);
+    }
     if (process.env.AIO_TEST_LAZY_HISTORY === '1') {
       const { DatabaseSync } = require('node:sqlite');
       env.CODEX_HOME = path.join(root, 'codex-fixture');
@@ -162,6 +167,15 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        if (process.env.AIO_TEST_BOT_UI === '1') {
+          console.log(await require('./verify-bot-ui.cjs').verifyBotUi(window, frame, project));
+          return;
+        }
+        if (codexFixture) {
+          await require('./verify-codex-submission.cjs').verifyCodexSubmission(window, frame, codexFixture);
+          console.log('Real Codex verified direct Enter with IME, a single-line follow-up, and native multiline startup.');
+          return;
+        }
         if (process.env.AIO_TEST_LAZY_HISTORY === '1') {
           await frame.getByRole('button', { name: '显示左侧栏', exact: true }).hover();
           const entries = frame.locator('.aio-history-provider');
@@ -284,6 +298,7 @@ async function main() {
     }
     throw new Error('Workbench React root did not render. ' + errors.slice(-15).join('\n'));
   } finally {
+    codexFixture?.close();
     if (app) await app.close();
     await restoreClipboard();
     await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });

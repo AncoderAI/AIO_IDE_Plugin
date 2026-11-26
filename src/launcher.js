@@ -97,7 +97,8 @@ async function openCli(vscode, id, uri, ompConfigPath, sessionArgs = []) {
   if (!cwd) return undefined
 
   const launch = terminalLaunch(definition.executable, process.platform, process.env,
-    [...(id === 'omp' && ompConfigPath ? ['--config', ompConfigPath] : []), ...sessionArgs])
+    [...(id === 'omp' && ompConfigPath ? ['--config', ompConfigPath] : []), ...sessionArgs,
+      ...(id === 'codex' ? ['-c', 'disable_paste_burst=true'] : [])])
   if (id === 'omp') launch.env = { ...launch.env, ...ompThemeEnvironment(vscode) }
   const terminal = vscode.window.createTerminal({
     name: `AIO · ${definition.label}`,
