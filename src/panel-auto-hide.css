@@ -1,3 +1,23 @@
+.app-shell.aio-auto-hide-panels {
+  --aio-project-panel-width: min(280px, 42vw);
+}
+
+/* Reserve the same width the project panel occupies. Keep the toolbar fixed so
+   its reveal button stays under the pointer while the terminal is resizing. */
+.app-shell.aio-auto-hide-panels > .workbench > .workbench__content {
+  margin-left: 0;
+  min-width: 0;
+  transition: margin-left 300ms ease-out;
+}
+
+.app-shell.aio-auto-hide-panels:has(> .sidebar:not(.aio-panel-hidden)) > .workbench > .workbench__content {
+  margin-left: var(--aio-project-panel-width);
+}
+
+.app-shell.aio-auto-hide-panels :is(.conversation-bottom-dock, .coding-cli-composer) {
+  margin-right: clamp(9px, 2vw, 24px);
+}
+
 .app-shell.aio-auto-hide-panels > .sidebar,
 .app-shell.aio-auto-hide-panels .inspector {
   position: fixed !important;
@@ -10,7 +30,7 @@
 
 .app-shell.aio-auto-hide-panels > .sidebar {
   inset: 0 auto 0 0 !important;
-  width: min(280px, calc(100vw - 48px)) !important;
+  width: var(--aio-project-panel-width) !important;
   height: 100% !important;
   flex: none !important;
   box-shadow: 12px 0 30px color-mix(in srgb, #000 18%, transparent);
@@ -99,6 +119,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-shell.aio-auto-hide-panels > .workbench > .workbench__content { transition: none; }
   .app-shell.aio-auto-hide-panels > .sidebar,
   .app-shell.aio-auto-hide-panels .inspector { transition: none; }
 }

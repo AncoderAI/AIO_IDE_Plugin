@@ -172,6 +172,7 @@ async function verifyWorkbenchClipboard(window, initialFrame, app, project) {
 
 module.exports = {
   aioFrame,
+  compileClaudeFixture,
   openFreshClaudeTerminal,
   prepareClaudeFixture,
   reopenWorkbench,

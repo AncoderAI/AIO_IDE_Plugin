@@ -158,6 +158,10 @@ async function main() {
           console.log(await require('./verify-page-back.cjs').verifyPageBack(window, frame));
           return;
         }
+        if (process.env.AIO_TEST_PANEL_ALIGNMENT === '1') {
+          console.log(await require('./verify-panel-alignment.cjs').verifyPanelAlignment(window, frame, project));
+          return;
+        }
         await require('./verify-split.cjs').verifySplit(window, frame);
         if (process.env.AIO_TEST_FILE_DROP === '1') {
           console.log(await require('./verify-drop.cjs').verifyDrop(window, frame, project));

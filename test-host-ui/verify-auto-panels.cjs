@@ -32,6 +32,7 @@ async function verifyAutoPanels(window, frame, app) {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1000, 760));
   const root = frame.locator('#root');
   const workbench = frame.locator('.workbench');
+  const workbenchContent = frame.locator('.workbench__content');
   const sidebar = frame.locator('.sidebar').last();
   const sidebarTrigger = frame.locator('.aio-panel-toggle-left').first();
   const inspector = frame.locator('.inspector').last();
@@ -167,7 +168,9 @@ async function verifyAutoPanels(window, frame, app) {
   await waitFor(frame, () => visible(sidebar), 'left edge to reveal the sidebar');
   const sidebarBox = await sidebar.boundingBox();
   const middleWhileSidebar = await workbench.boundingBox();
-  assert.ok(sidebarBox && middleWhileSidebar && overlaps(sidebarBox, middleWhileSidebar), 'Sidebar must overlay the middle workspace.');
+  const contentWhileSidebar = await workbenchContent.boundingBox();
+  assert.ok(sidebarBox && middleWhileSidebar && contentWhileSidebar
+    && contentWhileSidebar.x >= sidebarBox.x + sidebarBox.width - 2, 'Sidebar must reserve space beside the middle workspace.');
   assert.ok(middleWhileSidebar.width >= rootBox.width - 4, 'Revealed sidebar must not consume middle workspace width.');
   await waitFor(frame, async () => await frame.evaluate(() => document.activeElement?.tagName + '.' + document.activeElement?.className) === focusBeforeEdges,
     'sidebar edge focus restoration', 1000);
@@ -261,7 +264,7 @@ async function verifyAutoPanels(window, frame, app) {
 
   return {
     introVisible: true,
-    sidebarOverlay: true,
+    sidebarReservedSpace: true,
     inspectorOverlay: true,
     middleWidth: Math.round(middleBox.width),
     focusPreserved: true,
