@@ -151,6 +151,10 @@ async function main() {
         if (process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1') {
           console.log(await require('./verify-workbench-clipboard.cjs').verifyWorkbenchClipboard(window, frame, app, project, process.execPath));
         }
+        if (process.env.AIO_TEST_KEY_ROUTING === '1') {
+          console.log(await require('./verify-key-routing.cjs').verifyKeyRouting(window, frame, project));
+          return;
+        }
         if (process.env.AIO_TEST_FILE_DROP === '1' || process.env.AIO_TEST_NATIVE_DROP === '1') return;
         if (process.platform === 'win32') {
           for (const [cli, label] of [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]) {

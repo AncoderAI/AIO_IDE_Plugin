@@ -170,4 +170,10 @@ async function verifyWorkbenchClipboard(window, initialFrame, app, project) {
   return { mouseSelection: true, ctrlCopy: true, ctrlPaste: true, contextCopy: true, contextPaste: true, pasteSubmitted: false };
 }
 
-module.exports = { verifyWorkbenchClipboard };
+module.exports = {
+  aioFrame,
+  openFreshClaudeTerminal,
+  prepareClaudeFixture,
+  reopenWorkbench,
+  verifyWorkbenchClipboard,
+};

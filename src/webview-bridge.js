@@ -15,10 +15,40 @@
   const listeners = new Map()
   const terminals = new Map()
   let activeTerminal
+  let terminalKeyboardOwned = false
+  let terminalFocusIntent = false
+  let focusGeneration = 0
 
   function terminalForElement(element) {
     const root = element && typeof element.closest === 'function' ? element.closest('.xterm') : null
     return root ? terminals.get(root) : undefined
+  }
+
+  function visibleTerminal() {
+    if (activeTerminal?.isVisible()) return activeTerminal
+    activeTerminal = [...terminals.values()].find((terminal) => terminal.isVisible())
+    return activeTerminal
+  }
+
+  function isInteractive(element) {
+    return Boolean(element && typeof element.closest === 'function' && element.closest(
+      'input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"]), [role="button"], [role="menu"], [role="menuitem"], [role="dialog"], [role="listbox"], [role="option"], [role="tab"], [role="separator"], [aria-haspopup][aria-expanded="true"]',
+    ))
+  }
+
+  function blocksTerminalFocus(element) {
+    return Boolean(element && typeof element.closest === 'function' && element.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="menu"], [role="menuitem"], [role="dialog"], [role="listbox"], [role="option"], [aria-modal="true"], [aria-haspopup][aria-expanded="true"]',
+    ))
+  }
+
+  function focusOwnedTerminal() {
+    const generation = ++focusGeneration
+    const schedule = target.requestAnimationFrame || ((callback) => target.setTimeout(callback, 0))
+    schedule(() => {
+      if (generation !== focusGeneration || !terminalKeyboardOwned || target.document?.hasFocus?.() === false) return
+      visibleTerminal()?.focus()
+    })
   }
 
   function onTerminalClipboardShortcut(event) {
@@ -37,11 +67,39 @@
 
   target.addEventListener('keydown', onTerminalClipboardShortcut, true)
   target.addEventListener('focusin', (event) => {
-    activeTerminal = terminalForElement(event.target) || activeTerminal
+    const terminal = terminalForElement(event.target)
+    if (terminal) {
+      activeTerminal = terminal
+      if (terminalFocusIntent) terminalKeyboardOwned = true
+    } else if (isInteractive(event.target)) {
+      terminalKeyboardOwned = false
+      focusGeneration++
+    }
   }, true)
-  target.addEventListener('mousedown', (event) => {
-    activeTerminal = terminalForElement(event.target) || activeTerminal
+  target.addEventListener('pointerdown', (event) => {
+    const terminal = terminalForElement(event.target)
+    if (terminal) {
+      activeTerminal = terminal
+      terminalKeyboardOwned = true
+      terminalFocusIntent = true
+      return
+    }
+    if (!event.target?.closest?.('.app-shell')) return
+    terminalFocusIntent = !blocksTerminalFocus(event.target)
+    terminalKeyboardOwned = terminalFocusIntent && !isInteractive(event.target) && visibleTerminal() !== undefined
+    if (terminalKeyboardOwned) focusOwnedTerminal()
+    else focusGeneration++
   }, true)
+  target.addEventListener('blur', () => {
+    terminalKeyboardOwned = false
+    terminalFocusIntent = false
+    focusGeneration++
+  })
+  target.addEventListener('aio:terminal-focus-request', () => {
+    if (!terminalFocusIntent || blocksTerminalFocus(target.document?.activeElement)) return
+    terminalKeyboardOwned = visibleTerminal() !== undefined
+    if (terminalKeyboardOwned) focusOwnedTerminal()
+  })
   target.addEventListener('aio:terminal-register', (event) => {
     const detail = event.detail
     if (!detail || typeof detail.id !== 'string' || !detail.element
@@ -49,7 +107,7 @@
       || typeof detail.isVisible !== 'function' || typeof detail.paste !== 'function'
       || typeof detail.focus !== 'function') return
     terminals.set(detail.element, detail)
-    activeTerminal = detail
+    if (detail.isVisible()) activeTerminal = detail
   })
   target.addEventListener('aio:terminal-unregister', (event) => {
     const id = event.detail?.id
@@ -57,6 +115,11 @@
       if (terminal.id !== id) continue
       terminals.delete(element)
       if (activeTerminal === terminal) activeTerminal = undefined
+    }
+    if (!activeTerminal) activeTerminal = [...terminals.values()].find((terminal) => terminal.isVisible())
+    if (!activeTerminal) {
+      terminalKeyboardOwned = false
+      terminalFocusIntent = false
     }
   })
   target.addEventListener('aio:file-drop-request', (event) => {
@@ -106,12 +169,13 @@
   target.addEventListener('message', ({ data }) => {
     if (!data || typeof data !== 'object') return
     if (data.type === 'aio:terminal-copy-request' && Number.isSafeInteger(data.id)) {
+      const terminal = visibleTerminal()
       vscode.postMessage({
         type: 'aio:terminal-selection',
         id: data.id,
-        available: activeTerminal?.isVisible() === true,
-        terminalId: activeTerminal?.isVisible() ? activeTerminal.id : undefined,
-        text: activeTerminal?.isVisible() && activeTerminal.hasSelection() ? activeTerminal.getSelection() : '',
+        available: terminal !== undefined,
+        terminalId: terminal?.id,
+        text: terminal?.hasSelection() ? terminal.getSelection() : '',
       })
       return
     }

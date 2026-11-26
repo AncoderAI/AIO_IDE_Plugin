@@ -20,6 +20,10 @@ test('generated xterm chunk exposes only the scoped clipboard capability', () =>
   assert.match(source, /aio:terminal-register/)
   assert.match(source, /aio:terminal-unregister/)
   assert.match(source, /isVisible:/)
+  assert.match(source, /document\.hasFocus\(\)&&/)
+  const main = fs.readdirSync(assets).find((name) => /^main-.*\.js$/.test(name))
+  assert.ok(main)
+  assert.match(fs.readFileSync(path.join(assets, main), 'utf8'), /!Ge\.current\|\|u\.defaultPrevented/)
 })
 
 test('webview bridge correlates requests and forwards named events', async () => {
@@ -97,6 +101,75 @@ test('webview keeps terminal copy and paste shortcuts in the browser clipboard p
   pasted = undefined
   target.emit('message', { data: { type: 'aio:terminal-paste', terminalId: 'terminal-1', text: 'stale text' } })
   assert.equal(pasted, undefined)
+})
+
+test('webview gives keyboard ownership only after a deliberate non-editing click', () => {
+  const target = new EventEmitter()
+  target.addEventListener = target.on.bind(target)
+  const frames = []
+  target.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length }
+  target.document = { hasFocus: () => true }
+  createTauriBridge({ postMessage() {} }, target)
+  let focused = ''
+  const terminalElement = (id) => ({
+    closest: (selector) => selector === '.xterm' ? terminalElement.cache.get(id) : null,
+  })
+  terminalElement.cache = new Map()
+  const first = terminalElement('first')
+  const second = terminalElement('second')
+  const visibility = { first: true, second: true }
+  terminalElement.cache.set('first', first)
+  terminalElement.cache.set('second', second)
+  const register = (id, element) => target.emit('aio:terminal-register', { detail: {
+    id, element, hasSelection: () => false, getSelection: () => '',
+    isVisible: () => visibility[id], paste() {}, focus: () => { focused = id },
+  } })
+  register('first', first)
+  const background = {
+    closest: (selector) => selector === '.app-shell' ? background : null,
+  }
+  const input = {
+    closest: (selector) => selector.includes('input') ? input : selector === '.app-shell' ? background : null,
+  }
+  const button = {
+    closest: (selector) => selector.includes('button') ? button : selector === '.app-shell' ? background : null,
+  }
+
+  target.emit('focusin', { target: first })
+  target.emit('aio:terminal-focus-request')
+  assert.equal(focused, '')
+  target.emit('pointerover', { target: background })
+  assert.equal(focused, '')
+  target.emit('pointerdown', { target: background })
+  frames.shift()()
+  assert.equal(focused, 'first')
+
+  focused = ''
+  target.emit('pointerdown', { target: input })
+  target.emit('aio:terminal-focus-request')
+  assert.equal(focused, '')
+  target.emit('pointerdown', { target: button })
+  target.emit('aio:terminal-focus-request')
+  frames.shift()()
+  assert.equal(focused, 'first')
+  focused = ''
+  target.emit('pointerdown', { target: background })
+  target.emit('blur')
+  frames.shift()()
+  assert.equal(focused, '')
+
+  register('second', second)
+  target.emit('focusin', { target: second })
+  target.emit('pointerdown', { target: background })
+  frames.shift()()
+  assert.equal(focused, 'second')
+  visibility.first = true
+  visibility.second = false
+  focused = ''
+  target.emit('pointerdown', { target: button })
+  target.emit('aio:terminal-focus-request')
+  frames.shift()()
+  assert.equal(focused, 'first')
 })
 
 test('webview bridge routes project-directory drops and acknowledgements', () => {

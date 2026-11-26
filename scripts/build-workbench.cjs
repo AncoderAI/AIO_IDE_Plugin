@@ -84,11 +84,24 @@ async function buildUi() {
         name: 'aio-terminal-input-contrast',
         enforce: 'pre',
         transform(source, id) {
-          if (!id.replaceAll('\\', '/').endsWith('/src/components/TerminalDrawer.tsx')) return
+          const normalized = id.replaceAll('\\', '/')
+          if (normalized.endsWith('/src/App.tsx')) {
+            const keyboard = 'if (!terminalOpen || event.defaultPrevented || event.isComposing || isOverlayOpen()) return'
+            if (!source.includes(keyboard)) throw new Error('AIO App terminal keyboard anchor changed')
+            return source.replace(keyboard,
+              'if (!terminalOpen || !terminalOwnsKeyboard.current || event.defaultPrevented || event.isComposing || isOverlayOpen()) return')
+          }
+          if (!normalized.endsWith('/src/components/TerminalDrawer.tsx')) return
           const constructor = 'const terminal = new Terminal({'
           const open = 'terminal.open(container)'
           const dispose = 'terminal.dispose()'
-          if (!source.includes(constructor) || !source.includes(open) || !source.includes(dispose)) {
+          const delayedFocus = `try { fitRef.current?.fit() } catch { /* tab is transitioning */ }
+      terminalRef.current?.focus()
+      scheduleActiveContext()`
+          const guardedFocus = `try { fitRef.current?.fit() } catch { /* tab is transitioning */ }
+      if (document.hasFocus()) window.dispatchEvent(new CustomEvent('aio:terminal-focus-request'))
+      scheduleActiveContext()`
+          if (!source.includes(constructor) || !source.includes(open) || !source.includes(dispose) || !source.includes(delayedFocus)) {
             throw new Error('AIO TerminalDrawer clipboard anchors changed')
           }
           const registered = `${open}
@@ -117,6 +130,7 @@ async function buildUi() {
           return source
             .replace(constructor, constructor + '\n      minimumContrastRatio: 4.5,')
             .replace(open, registered)
+            .replace(delayedFocus, guardedFocus)
             .replace(dispose, unregistered)
         },
       },
@@ -179,8 +193,26 @@ function patchGeneratedTerminalClipboard() {
   const withRegistration = source.includes(open) ? source.replace(open, registered) : source.replace(registeredV1, registered)
   let withCleanup = withRegistration.includes(unregistered) ? withRegistration : withRegistration.replace(dispose, unregistered)
   while (withCleanup.includes(unregister + unregister)) withCleanup = withCleanup.replace(unregister + unregister, unregister)
-  if (!withCleanup.includes(registered) || !withCleanup.includes(unregistered)) throw new Error('Generated TerminalDrawer clipboard anchors changed')
-  writeFileSync(chunk, withCleanup)
+  const delayedFocus = 'y.current?.focus(),k()'
+  const previousGuardedFocus = 'document.hasFocus()&&y.current?.focus(),k()'
+  const guardedFocus = 'document.hasFocus()&&window.dispatchEvent(new CustomEvent("aio:terminal-focus-request")),k()'
+  const withFocus = withCleanup.includes(guardedFocus)
+    ? withCleanup
+    : withCleanup.replace(previousGuardedFocus, guardedFocus).replace(delayedFocus, guardedFocus)
+  if (!withFocus.includes(registered) || !withFocus.includes(unregistered) || !withFocus.includes(guardedFocus)) {
+    throw new Error('Generated TerminalDrawer clipboard anchors changed')
+  }
+  writeFileSync(chunk, withFocus)
+
+  const mainChunks = readdirSync(join(uiOutput, 'assets')).filter((name) => /^main-.*\.js$/.test(name))
+  if (mainChunks.length !== 1) throw new Error('Expected one generated AIO main chunk')
+  const mainChunk = join(uiOutput, 'assets', mainChunks[0])
+  const mainSource = readFileSync(mainChunk, 'utf8')
+  const keyboard = 'Hn=rs(u=>{!Ne||u.defaultPrevented'
+  const ownedKeyboard = 'Hn=rs(u=>{!Ne||!Ge.current||u.defaultPrevented'
+  const routed = mainSource.includes(ownedKeyboard) ? mainSource : mainSource.replace(keyboard, ownedKeyboard)
+  if (!routed.includes(ownedKeyboard)) throw new Error('Generated AIO keyboard routing anchor changed')
+  writeFileSync(mainChunk, routed)
 }
 
 async function buildService() {
