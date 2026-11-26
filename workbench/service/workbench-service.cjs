@@ -28307,7 +28307,7 @@ function createOmpMetadataPool(fallback) {
 
 // ../AIO/research/tauri-spike/terminal-restore.ts
 function terminalSessionArgs(entry, sessionDirectory, restoring) {
-  if (entry.agent === "omp") return ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml"), "--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];
+  if (entry.agent === "omp") return ["--config", require("node:path").resolve(__dirname, "aio-omp-config.yml"), "--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];
   if (entry.agent === "claude" && entry.sessionId) return [restoring ? "--resume" : "--session-id", entry.sessionId];
   if (entry.agent === "claude" && restoring) return ["--resume"];
   if (entry.agent === "codex" && restoring) return ["resume", ...entry.sessionId ? [entry.sessionId] : []];
@@ -30453,7 +30453,7 @@ async function resolveTerminalAgent(context, agent, fresh, entry, restoring = fa
     return { executable, args: terminalSessionArgs(entry, directory, restoring), label, agent };
   }
   if (agent === "omp") {
-    return { executable, args: ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml")], label, agent };
+    return { executable, args: ["--config", require("node:path").resolve(__dirname, "aio-omp-config.yml")], label, agent };
   }
   if (agent === "claude" && !fresh) {
     return { executable, args: ["--continue"], label, agent, retryWithoutArgsOnExit: "No conversation found to continue" };

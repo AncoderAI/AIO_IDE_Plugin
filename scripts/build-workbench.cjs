@@ -381,10 +381,10 @@ function disableOmpComposerPredictions() {
   const service = join(serviceOutput, 'workbench-service.cjs')
   let source = readFileSync(service, 'utf8')
   const restored = 'if (entry.agent === "omp") return ["--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];'
-  const configuredRestore = 'if (entry.agent === "omp") return ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml"), "--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];'
+  const configuredRestore = 'if (entry.agent === "omp") return ["--config", require("node:path").resolve(__dirname, "aio-omp-config.yml"), "--session-dir", sessionDirectory, ...restoring ? ["--continue"] : []];'
   if (source.includes(restored)) source = source.replace(restored, configuredRestore)
   const claude = 'if (agent === "claude" && !fresh) {'
-  const configuredFresh = 'if (agent === "omp") {\n    return { executable, args: ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml")], label, agent };\n  }\n  '
+  const configuredFresh = 'if (agent === "omp") {\n    return { executable, args: ["--config", require("node:path").resolve(__dirname, "aio-omp-config.yml")], label, agent };\n  }\n  '
   if (!source.includes(configuredFresh)) source = source.replace(claude, configuredFresh + claude)
   if (!source.includes(configuredRestore) || !source.includes(configuredFresh)) {
     throw new Error('AIO workbench OMP prediction overlay anchors changed')
@@ -503,6 +503,7 @@ function writeManifest(dependencies) {
       'ui/index.html',
       'service/workbench-service.cjs',
       'service/omp-metadata-worker.cjs',
+      'service/aio-omp-config.yml',
       ...(process.platform === 'win32' ? ['service/aio-terminal-host.exe'] : []),
     ],
     dependencies,

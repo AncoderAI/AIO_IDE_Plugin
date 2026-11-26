@@ -1,0 +1,76 @@
+'use strict'
+
+const assert = require('node:assert/strict')
+const fs = require('node:fs/promises')
+const path = require('node:path')
+const os = require('node:os')
+const test = require('node:test')
+const { DatabaseSync } = require('node:sqlite')
+const { LazyHistory } = require('../src/lazy-history')
+const { WorkbenchHost } = require('../src/workbench')
+
+const firstId = '11111111-1111-4111-8111-111111111111'
+const secondId = '22222222-2222-4222-8222-222222222222'
+
+test('cold workbench routes zero requests to history, then selects only the clicked project and CLI', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-lazy-history-'))
+  t.after(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }))
+  const cwd = path.join(home, '项目 A')
+  const other = path.join(home, '项目 B')
+  const codex = path.join(home, '.codex')
+  await fs.mkdir(codex)
+  const database = new DatabaseSync(path.join(codex, 'state_5.sqlite'))
+  database.exec('CREATE TABLE threads (id TEXT, title TEXT, updated_at INTEGER, cwd TEXT, archived INTEGER)')
+  const insert = database.prepare('INSERT INTO threads VALUES (?, ?, 1, ?, 0)')
+  insert.run(firstId, '项目 A 会话', cwd)
+  insert.run(secondId, '项目 B 会话', other)
+  database.close()
+
+  const reads = []
+  const calls = []
+  const history = new LazyHistory({ home, env: {}, onRead: event => reads.push(event) })
+  const vscode = { workspace: { isTrusted: true }, window: { createOutputChannel: () => ({ dispose() {} }) } }
+  const host = new WorkbenchHost(vscode, {}, { history })
+  const service = {
+    async request(channel) {
+      calls.push(channel)
+      return [{ primaryFolder: cwd }, { primaryFolder: other }]
+    },
+  }
+  const invoke = (channel, args = []) => host.desktopRequest({ channel, args }, service)
+  await Promise.all(['projects:list', 'sessions:list', 'terminal:list-restorable', 'coding:list',
+    'coding:list-summaries', 'app:list-coding-cli-history'].map(channel => invoke(channel)))
+  assert.deepEqual(calls, ['projects:list-initial'])
+  assert.deepEqual(reads, [])
+  await assert.rejects(invoke('aio-history:resume', [cwd, 'codex', firstId]), /先加载/)
+  assert.deepEqual(reads, [])
+  assert.deepEqual(await invoke('aio-history:list', [cwd, 'codex']), [
+    { id: firstId, title: '项目 A 会话', updatedAt: 1000 },
+  ])
+  assert.deepEqual(reads, [
+    { cwd, provider: 'codex', kind: 'metadata' }, { cwd, provider: 'codex', kind: 'index' },
+  ])
+  assert.deepEqual(history.resumeArgs(cwd, 'codex', firstId), ['resume', firstId])
+  assert.throws(() => history.resumeArgs(other, 'codex', firstId), /先加载/)
+  await assert.rejects(invoke('aio-history:list', [path.join(home, 'unknown'), 'claude']), /已登记/)
+  assert.equal(reads.length, 2)
+})
+
+test('OMP and Claude load only their requested project buckets', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-provider-buckets-'))
+  t.after(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }))
+  const cwd = path.join(home, 'project avoid collision')
+  const claude = path.join(home, '.claude', 'projects', cwd.replace(/[^\p{L}\p{N}]/gu, '-'))
+  const omp = path.join(home, '.omp', 'agent', 'sessions', '--' + cwd.replace(/[:\\/]/g, '-').replace(/^-+|-+$/g, '') + '--')
+  for (const folder of [claude, omp]) await fs.mkdir(folder, { recursive: true })
+  const file = path.join(omp, 'session.jsonl')
+  await fs.writeFile(file, JSON.stringify({ type: 'session', id: firstId, cwd }) + '\n')
+  await fs.writeFile(path.join(claude, 'session.jsonl'), JSON.stringify({ type: 'user', sessionId: secondId, cwd }) + '\n')
+  const reads = []
+  const history = new LazyHistory({ home, env: {}, onRead: e => reads.push(e) })
+  assert.deepEqual((await history.list(cwd, 'omp')).map(row => row.id), [firstId])
+  assert.ok(reads.every(row => row.provider === 'omp'))
+  assert.deepEqual(history.resumeArgs(cwd, 'omp', firstId), ['--resume', file])
+  assert.deepEqual((await history.list(cwd, 'claude')).map(row => row.id), [secondId])
+  assert.deepEqual(history.resumeArgs(cwd, 'claude', secondId), ['--resume', secondId])
+})

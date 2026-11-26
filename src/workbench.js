@@ -6,6 +6,8 @@ const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
+const { LazyHistory, key, providers, queryWithNode } = require('./lazy-history')
+const { openCli } = require('./launcher')
 const { PreviewGroupController } = require('./preview-group')
 const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
 const {
@@ -195,7 +197,7 @@ function nonce() {
   return randomBytes(24).toString('base64url')
 }
 
-function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri) {
+function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri, historyUri) {
   const token = nonce()
   const base = String(uiUri).replace(/\/?$/, '/')
   const csp = [
@@ -211,6 +213,7 @@ function renderWorkbenchHtml(html, webview, uiUri, bridgeUri, fileDropUri, panel
   ].join('; ')
   let result = html.replace(/<meta\s+http-equiv=["']Content-Security-Policy["'][^>]*>\s*/gi, '')
   result = result.replace(/<head(\s[^>]*)?>/i, (head) => `${head}\n<meta http-equiv="Content-Security-Policy" content="${csp}">\n<base href="${base}">${panelStyleUri ? `\n<link rel="stylesheet" href="${panelStyleUri}">` : ''}\n<script nonce="${token}" src="${bridgeUri}"></script>${fileDropUri ? `\n<script nonce="${token}" src="${fileDropUri}"></script>` : ''}${panelScriptUri ? `\n<script nonce="${token}" src="${panelScriptUri}"></script>` : ''}`)
+  if (historyUri) result = result.replace('</head>', `<script nonce="${token}" src="${historyUri}"></script></head>`)
   result = result.replace(/<script\b(?![^>]*\bnonce=)/gi, `<script nonce="${token}"`)
   return result
 }
@@ -225,6 +228,9 @@ class WorkbenchHost {
   constructor(vscode, context, options = {}) {
     this.vscode = vscode
     this.context = context
+    this.history = options.history || new LazyHistory({
+      queryCodex: (filename, cwd) => queryWithNode(resolveNodeRuntime(), filename, cwd),
+    })
     this.options = options
     this.panel = undefined
     this.service = undefined
@@ -472,7 +478,8 @@ class WorkbenchHost {
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => { void this.handleMessage(message, panel, service) })
       this.disposables.push(messageDisposable)
-      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri)
+      const historyUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'history-view.js'))))
+      panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri, historyUri)
       return panel
     } catch (error) {
       if (this.service === service) this.service = undefined
@@ -582,6 +589,38 @@ class WorkbenchHost {
     if (typeof input.channel !== 'string' || input.channel.length < 1 || input.channel.length > 128) throw new TypeError('Invalid desktop channel')
     if (!Array.isArray(input.args) || input.args.length > 16) throw new TypeError('Invalid desktop arguments')
     let { channel, args } = input
+    // The desktop renderer requests these catalogs during bootstrap and navigation.
+    // This host exposes the history catalog through the explicit per-provider actions.
+    if (['sessions:list', 'terminal:list-restorable', 'coding:list', 'coding:list-summaries', 'app:list-coding-cli-history'].includes(channel)) {
+      return channel === 'terminal:list-restorable' ? {} : []
+    }
+    if (channel === 'app:refresh-coding-cli-history') return null
+    if (channel === 'projects:list') return service.request('projects:list-initial', [])
+    if (channel === 'aio-history:list' || channel === 'aio-history:resume') {
+      const [folder, provider, id] = args
+      if (this.vscode.workspace.isTrusted === false || typeof folder !== 'string' ||
+          !path.isAbsolute(folder) || !providers.has(provider)) throw new Error('无效的历史会话请求')
+      const records = await service.request('projects:list-initial', [])
+      const project = records.find(row => key(row.primaryFolder || row.path) === key(folder))
+      if (!project) throw new Error('该目录不是 AIO 已登记的项目')
+      const cwd = project.primaryFolder || project.path
+      if (channel === 'aio-history:list') {
+        const buckets = []
+        const storage = this.context.storageUri || this.context.globalStorageUri
+        if (provider === 'omp' && storage) {
+          const restored = await service.request('terminal:list-restorable', [[project.id]])
+          for (const row of restored[project.id] || []) {
+            if (row.agent === 'omp' && /^[a-f0-9-]{36}$/i.test(row.id)) {
+              buckets.push(path.join(storage.fsPath, 'workbench', 'terminal-sessions', row.id))
+            }
+          }
+        }
+        return this.history.list(cwd, provider, buckets)
+      }
+      const sessionArgs = this.history.resumeArgs(cwd, provider, id)
+      const config = this.context.asAbsolutePath('workbench/service/aio-omp-config.yml')
+      return Boolean(await openCli(this.vscode, provider, this.vscode.Uri.file(cwd), config, sessionArgs))
+    }
     // The shared renderer reads the task list at startup even on the Tauri
     // backend, which has no scheduled tasks.
     if (channel === 'long-run:list-tasks' && args.length === 0) return []

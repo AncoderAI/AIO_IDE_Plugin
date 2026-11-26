@@ -148,3 +148,25 @@ body:has(.app-shell) {
   .app-shell.aio-auto-hide-panels > .sidebar,
   .app-shell.aio-auto-hide-panels .inspector { transition: none; }
 }
+.aio-history-entries {
+  display: grid;
+  gap: 2px;
+  margin: 2px 8px 8px 24px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.aio-history-entries button {
+  display: block;
+  max-width: 100%;
+  padding: 3px 5px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aio-history-entries button:hover { background: var(--surface-hover); }
+.aio-history-results { margin-left: 5px; overflow-wrap: anywhere; }

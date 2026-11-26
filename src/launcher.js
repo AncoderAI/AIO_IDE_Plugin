@@ -44,12 +44,12 @@ async function chooseWorkingDirectory(vscode, uri) {
 function terminalLaunch(executable, platform = process.platform, environment = process.env, extraArgs = []) {
   const extension = path.extname(executable).toLowerCase()
   if (platform === 'win32' && (extension === '.cmd' || extension === '.bat')) {
+    if (extraArgs.some(argument => /["\u0000-\u001f]/.test(argument))) throw new Error('CLI 启动参数包含不支持的字符')
+    const argumentNames = extraArgs.map((_, index) => 'AIO_CLI_ARG_' + index)
     return {
       shellPath: environment.ComSpec || 'C:\\Windows\\System32\\cmd.exe',
-      shellArgs: extraArgs.length
-        ? '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%" --config "%AIO_OMP_CONFIG%""'
-        : '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%""',
-      env: { AIO_CLI_EXECUTABLE: executable, ...(extraArgs.length ? { AIO_OMP_CONFIG: extraArgs[1] } : {}) },
+      shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%"' + argumentNames.map(name => ' "%' + name + '%"').join('') + '"',
+      env: { AIO_CLI_EXECUTABLE: executable, ...Object.fromEntries(argumentNames.map((name, index) => [name, extraArgs[index]])) },
     }
   }
   if (platform === 'win32' && extension === '.ps1') {
@@ -85,7 +85,7 @@ async function showMissingCli(vscode, definition) {
   }
 }
 
-async function openCli(vscode, id, uri, ompConfigPath) {
+async function openCli(vscode, id, uri, ompConfigPath, sessionArgs = []) {
   if (!(await requireTrustedWorkspace(vscode))) return undefined
   const configuration = vscode.workspace.getConfiguration('aio')
   const definition = await discoverCli(id, configuration)
@@ -97,7 +97,7 @@ async function openCli(vscode, id, uri, ompConfigPath) {
   if (!cwd) return undefined
 
   const launch = terminalLaunch(definition.executable, process.platform, process.env,
-    id === 'omp' && ompConfigPath ? ['--config', ompConfigPath] : [])
+    [...(id === 'omp' && ompConfigPath ? ['--config', ompConfigPath] : []), ...sessionArgs])
   if (id === 'omp') launch.env = { ...launch.env, ...ompThemeEnvironment(vscode) }
   const terminal = vscode.window.createTerminal({
     name: `AIO · ${definition.label}`,

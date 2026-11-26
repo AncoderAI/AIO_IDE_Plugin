@@ -13,5 +13,5 @@ test('all plugin-owned OMP terminal paths use the prediction-free overlay', () =
   assert.ok(service.includes('entry.agent === "omp") return ["--config"'))
   assert.ok(service.includes('"aio-omp-config.yml"), "--session-dir"'))
   assert.ok(service.includes('if (agent === "omp")'))
-  assert.ok(service.includes('args: ["--config", (0, import_node_path23.resolve)(__dirname, "aio-omp-config.yml")]'))
+  assert.ok(service.includes('args: ["--config", require("node:path").resolve(__dirname, "aio-omp-config.yml")]'))
 })

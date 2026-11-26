@@ -47,10 +47,11 @@ test('OMP config overlay survives Windows command shims without joining arbitrar
     ['--config', 'C:\Program Files\AIO\aio-omp-config.yml'])
   assert.deepEqual(result, {
     shellPath: 'cmd.exe',
-    shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%" --config "%AIO_OMP_CONFIG%""',
+    shellArgs: '/d /v:off /s /c ""%AIO_CLI_EXECUTABLE%" "%AIO_CLI_ARG_0%" "%AIO_CLI_ARG_1%""',
     env: {
       AIO_CLI_EXECUTABLE: 'C:\Program Files\AIO\omp.cmd',
-      AIO_OMP_CONFIG: 'C:\Program Files\AIO\aio-omp-config.yml',
+      AIO_CLI_ARG_0: '--config',
+      AIO_CLI_ARG_1: 'C:\Program Files\AIO\aio-omp-config.yml',
     },
   })
 })

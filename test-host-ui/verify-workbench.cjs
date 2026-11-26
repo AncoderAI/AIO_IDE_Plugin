@@ -92,6 +92,16 @@ async function main() {
     }
     const env = { ...process.env, AIO_TEST_PROJECT_IMPORT_PATH: importedProject };
     delete env.ELECTRON_RUN_AS_NODE;
+    if (process.env.AIO_TEST_LAZY_HISTORY === '1') {
+      const { DatabaseSync } = require('node:sqlite');
+      env.CODEX_HOME = path.join(root, 'codex-fixture');
+      await fs.mkdir(env.CODEX_HOME);
+      const database = new DatabaseSync(path.join(env.CODEX_HOME, 'state_5.sqlite'));
+      database.exec('CREATE TABLE threads (id TEXT, title TEXT, updated_at INTEGER, cwd TEXT, archived INTEGER)');
+      database.prepare('INSERT INTO threads VALUES (?, ?, 1, ?, 0)').run(
+        '11111111-1111-4111-8111-111111111111', 'AIO CODEX HISTORY FIXTURE', await fs.realpath(project));
+      database.close();
+    }
     const profileArgs = ['--user-data-dir=' + path.join(root, 'profile'), '--extensions-dir=' + path.join(root, 'extensions')];
     let developmentPath = path.resolve(process.env.AIO_EXTENSION_PATH || path.join(__dirname, '..'));
     if (process.argv[2]) {
@@ -151,6 +161,19 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        if (process.env.AIO_TEST_LAZY_HISTORY === '1') {
+          await frame.getByRole('button', { name: '显示左侧栏', exact: true }).hover();
+          const entries = frame.locator('.aio-history-provider');
+          await entries.first().waitFor();
+          assert.equal(await entries.count(), 3);
+          assert.equal(await frame.getByText('AIO CODEX HISTORY FIXTURE', { exact: true }).count(), 0);
+          await frame.getByRole('button', { name: 'Codex · 加载历史会话', exact: true }).click();
+          await frame.getByRole('button', { name: 'AIO CODEX HISTORY FIXTURE', exact: true }).waitFor();
+          assert.equal(await frame.locator('[data-provider="omp"] .aio-history-results').innerText(), '');
+          assert.equal(await frame.locator('[data-provider="claude"] .aio-history-results').innerText(), '');
+          console.log('AIO exposes three history controls and loads the selected Codex index on demand');
+          return;
+        }
         if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
           console.log(await require('./verify-project-import.cjs').verifyProjectImport(frame, project, importedProject));
           return;
