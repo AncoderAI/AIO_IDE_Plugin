@@ -73,6 +73,13 @@
     return MIME_TYPES.some((type) => types.includes(type))
   }
 
+  function activatedProjectPath(event) {
+    if (!event?.isTrusted || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return undefined
+    const button = event.target?.closest?.('button.project-row__main')
+    const projectPath = button?.getAttribute('title')
+    return typeof projectPath === 'string' && projectPath && !CONTROL_CHARACTERS.test(projectPath) ? projectPath : undefined
+  }
+
   function insertReferences(target, references, root) {
     const text = references.join(' ')
     if (!text || CONTROL_CHARACTERS.test(text)) return false
@@ -233,6 +240,11 @@
       const target = dropTarget(event.target, root.document)
       if (target && target.kind !== 'projects') lastFocusedTarget = target
     }, true)
+    root.document.addEventListener('click', (event) => {
+      const projectPath = activatedProjectPath(event)
+      if (!projectPath) return
+      root.dispatchEvent(new root.CustomEvent('aio:project-activate', { detail: { path: projectPath } }))
+    }, true)
     root.document.addEventListener('dragover', (event) => {
       const target = dropTarget(event.target, root.document)
       if (!hasSupportedDropType(event.dataTransfer) || !target) return
@@ -306,7 +318,7 @@
   }
 
   return {
-    CONTROL_CHARACTERS, extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, installFileDrop,
+    CONTROL_CHARACTERS, activatedProjectPath, extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, installFileDrop,
     resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest,
   }
 })

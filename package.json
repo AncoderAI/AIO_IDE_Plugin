@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "AIO · AI CLI 工作台",
   "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -11,7 +11,7 @@
   "categories": ["Other"],
   "extensionKind": ["workspace"],
   "main": "./src/extension.js",
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "capabilities": {
     "untrustedWorkspaces": { "supported": false },
     "virtualWorkspaces": { "supported": false }
@@ -33,6 +33,7 @@
       { "command": "aio.pasteIntoTerminal", "category": "AIO", "title": "粘贴到终端", "icon": "$(clippy)", "enablement": "aio.activeCliTerminal" },
       { "command": "aio.referenceInWorkbench", "category": "AIO", "title": "在 AIO 对话中引用路径", "icon": "$(references)" },
         { "command": "aio.importProjectInWorkbench", "category": "AIO", "title": "在 AIO 中添加项目", "icon": "$(folder-library)" },
+        { "command": "aio.openRegisteredProject", "category": "AIO", "title": "打开已登记项目" },
       { "command": "aio.openWorkbench", "category": "AIO", "title": "打开完整工作台" }
     ],
     "menus": {
@@ -44,7 +45,8 @@
         { "command": "aio.copyTerminalSelection", "when": "aio.activeCliTerminal" },
         { "command": "aio.pasteIntoTerminal", "when": "aio.activeCliTerminal" },
         { "command": "aio.referenceInWorkbench", "when": "false" },
-        { "command": "aio.importProjectInWorkbench", "when": "false" }
+        { "command": "aio.importProjectInWorkbench", "when": "false" },
+        { "command": "aio.openRegisteredProject", "when": "false" }
       ],
       "explorer/context": [
         { "command": "aio.referenceInWorkbench", "when": "isWorkspaceTrusted", "group": "navigation@6" },

@@ -44,6 +44,10 @@
     if (!detail || !Number.isSafeInteger(detail.id) || !Array.isArray(detail.candidates)) return
     vscode.postMessage({ type: 'aio:project-drop', id: detail.id, candidates: detail.candidates })
   })
+  target.addEventListener('aio:project-activate', (event) => {
+    const path = event.detail?.path
+    if (typeof path === 'string') vscode.postMessage({ type: 'aio:project-activate', path })
+  })
   target.addEventListener('aio:file-reference-result', (event) => {
     const detail = event.detail
     if (!detail || !Number.isSafeInteger(detail.id)) return

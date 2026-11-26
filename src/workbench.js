@@ -7,6 +7,10 @@ const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
 const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
+const {
+  HANDOFF_TTL_MS, clearProjectHandoff, currentWorkspaceMatches, projectRoot, registeredProject,
+  projectFolderUri, samePath, storeProjectHandoff, uniquePaths,
+} = require('./project-handoff')
 
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024
 const MAX_RESPONSE_BYTES = 32 * 1024 * 1024
@@ -229,6 +233,7 @@ class WorkbenchHost {
     this.referenceSequence = 0
     this.referenceRequests = new Map()
     this.panelListeners = new Set()
+    this.projectSwitch = undefined
     this.log = vscode.window.createOutputChannel('AIO 工作台')
   }
 
@@ -294,6 +299,51 @@ class WorkbenchHost {
     }
     if (queued) this.postEvent('desktop-event', { event: 'app:open-folder', payload: null })
     return queued
+  }
+
+  activateProjectPath(requestedPath) {
+    if (this.projectSwitch) {
+      return samePath(path, this.projectSwitch.path, String(requestedPath))
+        ? this.projectSwitch.promise
+        : Promise.resolve(false)
+    }
+    const promise = this.performProjectSwitch(requestedPath).finally(() => {
+      if (this.projectSwitch?.promise === promise) this.projectSwitch = undefined
+    })
+    this.projectSwitch = { path: String(requestedPath), promise }
+    return promise
+  }
+
+  async performProjectSwitch(requestedPath) {
+    if (!this.panel || !this.service) return false
+    if (typeof requestedPath !== 'string' || !requestedPath || /[\u0000-\u001f\u007f-\u009f]/.test(requestedPath)) return false
+    const projects = await this.service.request('projects:list-initial', [])
+    const project = registeredProject(path, projects, requestedPath)
+    if (!project) {
+      await this.vscode.window.showWarningMessage('该目录不是 AIO 已登记的项目。')
+      return false
+    }
+    const target = projectRoot(project)
+    const roots = uniquePaths(path, projects.map(projectRoot))
+    if (currentWorkspaceMatches(this.vscode, path, target)) return true
+    if (!this.context.globalState) throw new Error('AIO 项目切换状态不可用')
+    const uri = projectFolderUri(this.vscode, path, target)
+    const stat = await this.vscode.workspace.fs.stat(uri)
+    const fileType = this.vscode.FileType || { Directory: 2 }
+    if (!(stat.type & fileType.Directory)) throw new Error('AIO 项目目录已经不存在')
+    await storeProjectHandoff(this.context, path, {
+      target,
+      projects: roots,
+      expiresAt: Date.now() + HANDOFF_TTL_MS,
+      token: randomBytes(16).toString('hex'),
+    })
+    try {
+      await this.vscode.commands.executeCommand('vscode.openFolder', uri, false)
+      return true
+    } catch (error) {
+      await clearProjectHandoff(this.context, path, target)
+      throw error
+    }
   }
 
   async open(resource) {
@@ -389,6 +439,11 @@ class WorkbenchHost {
 
   async handleMessage(message, panel = this.panel, service = this.service) {
     if (!panel || !service || this.panel !== panel || this.service !== service) return
+    if (message?.type === 'aio:project-activate') {
+      try { await this.activateProjectPath(message.path) }
+      catch (error) { await this.vscode.window.showErrorMessage(errorMessage(error)) }
+      return
+    }
     if (message?.type === 'aio:file-reference-result' && Number.isSafeInteger(message.id)) {
       const request = this.referenceRequests.get(message.id)
       if (!request) return
@@ -512,6 +567,8 @@ function registerWorkbench(vscode, context, options) {
   const host = new WorkbenchHost(vscode, context, options)
   context.subscriptions.push(
     vscode.commands.registerCommand('aio.openWorkbench', (resource) => host.open(resource).catch((error) => vscode.window.showErrorMessage(errorMessage(error)))),
+    vscode.commands.registerCommand('aio.openRegisteredProject', (projectPath) => host.activateProjectPath(projectPath)
+      .catch((error) => vscode.window.showErrorMessage(errorMessage(error)))),
     host,
   )
   return host

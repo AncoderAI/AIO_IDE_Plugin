@@ -4,7 +4,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 const path = require('node:path')
 const {
-  extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, resolveDroppedReferences, validFileDropRequest,
+  activatedProjectPath, extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, resolveDroppedReferences, validFileDropRequest,
   resolveDroppedDirectories,
 } = require('../src/file-drop')
 
@@ -112,4 +112,13 @@ test('validates bounded host requests and rejects decoded control characters', a
   assert.deepEqual(await resolveDroppedDirectories(vscode, path.win32, [
     { kind: 'path', value: 'D:\\outside' },
   ], false), ['D:\\outside'])
+})
+
+test('only a trusted unmodified project main-row activation requests a workspace switch', () => {
+  const main = { closest: (selector) => selector === 'button.project-row__main' ? { getAttribute: () => 'D:\\project' } : null }
+  const event = { isTrusted: true, target: main, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }
+  assert.equal(activatedProjectPath(event), 'D:\\project')
+  assert.equal(activatedProjectPath({ ...event, ctrlKey: true }), undefined)
+  assert.equal(activatedProjectPath({ ...event, isTrusted: false }), undefined)
+  assert.equal(activatedProjectPath({ ...event, target: { closest: () => null } }), undefined)
 })

@@ -4,8 +4,10 @@ const vscode = require('vscode');
 const { registerLauncher } = require('./launcher');
 const { registerWorkbench } = require('./workbench');
 const { registerFileReferenceTree } = require('./file-reference-tree');
+const path = require('node:path');
+const { resumeProjectHandoff } = require('./project-handoff');
 
-function activate(context) {
+async function activate(context) {
   registerLauncher(vscode, context);
   const workbenchHost = registerWorkbench(vscode, context);
 
@@ -21,6 +23,8 @@ function activate(context) {
     return item;
   });
   registerFileReferenceTree(vscode, context, workbenchHost, entries);
+  try { await resumeProjectHandoff(vscode, context, workbenchHost, path); }
+  catch (error) { await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error)); }
 }
 
 module.exports = { activate };
