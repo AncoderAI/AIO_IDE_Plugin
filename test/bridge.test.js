@@ -350,38 +350,41 @@ test('workbench clipboard commands require the active panel and a visible termin
 })
 
 test('workbench panel gets a new locked editor group', async () => {
-  const actions = []
-  const panel = { id: 'aio-panel' }
-  const previewGroupController = {
-    captureBaseline: async () => { actions.push('captureBaseline') },
-    close: async () => {},
-    dispose: async () => {},
-  }
-  const vscode = {
-    ViewColumn: { Active: -1 },
-    Uri: { file: (value) => value },
-    commands: { executeCommand: async (command) => { actions.push(command) } },
-    window: {
-      createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
-      createWebviewPanel: (_type, _title, column) => {
-        assert.equal(column, -1)
-        actions.push('createWebviewPanel')
-        return panel
+  for (const side of ['left', 'right']) {
+    const actions = []
+    const panel = { id: 'aio-panel' }
+    const previewGroupController = {
+      captureBaseline: async () => { actions.push('captureBaseline') },
+      close: async () => {},
+      dispose: async () => {},
+    }
+    const vscode = {
+      workspace: { getConfiguration: () => ({ get: () => side }) },
+      ViewColumn: { Active: -1 },
+      Uri: { file: (value) => value },
+      commands: { executeCommand: async (command) => { actions.push(command) } },
+      window: {
+        createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
+        createWebviewPanel: (_type, _title, column) => {
+          assert.equal(column, -1)
+          actions.push('createWebviewPanel')
+          return panel
+        },
       },
-    },
-  }
-  const context = { extensionPath: 'C:\\extension' }
-  const host = new WorkbenchHost(vscode, context, { previewGroupController })
-  const result = await host.createWorkbenchPanel('C:\\extension\\workbench\\ui')
+    }
+    const context = { extensionPath: 'C:\\extension' }
+    const host = new WorkbenchHost(vscode, context, { previewGroupController })
+    const result = await host.createWorkbenchPanel('C:\\extension\\workbench\\ui')
 
-  assert.equal(result, panel)
-  assert.deepEqual(actions, [
-    'captureBaseline',
-    'workbench.action.newGroupRight',
-    'createWebviewPanel',
-    'workbench.action.lockEditorGroup',
-  ])
-  host.dispose()
+    assert.equal(result, panel)
+    assert.deepEqual(actions, [
+      'captureBaseline',
+      side === 'left' ? 'workbench.action.newGroupRight' : 'workbench.action.newGroupLeft',
+      'createWebviewPanel',
+      'workbench.action.lockEditorGroup',
+    ])
+    host.dispose()
+  }
 })
 
 test('workbench preview timer attaches once after the webview ready handshake', async () => {

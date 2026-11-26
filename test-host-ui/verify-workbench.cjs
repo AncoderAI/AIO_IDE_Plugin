@@ -74,6 +74,7 @@ async function main() {
     if (clipboardTest) restoreClipboard = await preserveWindowsClipboard(root);
     if (process.platform === 'win32') {
       const settings = {};
+      if (process.env.AIO_TEST_EXPLORER_SIDE === 'right') settings['workbench.sideBar.location'] = 'right';
       for (const cli of ['omp', 'claude', 'codex']) {
         const shim = path.join(root, cli + '.cmd');
         const commands = ['@echo off', 'chcp 65001 >nul'];

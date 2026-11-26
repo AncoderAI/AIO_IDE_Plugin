@@ -39,13 +39,14 @@ function Find-PreviewGroup($window, $aioTab) {
     [System.Windows.Automation.ControlType]::TabItem)
   $tabs = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tabType)
   $previewTab = $null
-  $previewLeft = [double]::NegativeInfinity
+  $distance = [double]::PositiveInfinity
   foreach ($tab in $tabs) {
     try {
       $rect = $tab.Current.BoundingRectangle
-      if ($rect.Left -lt $aioRect.Left -and [Math]::Abs($rect.Top - $aioRect.Top) -lt 24 -and $rect.Left -gt $previewLeft) {
+      $gap = [Math]::Abs($rect.Left - $aioRect.Left)
+      if ($gap -gt 1 -and [Math]::Abs($rect.Top - $aioRect.Top) -lt 24 -and $gap -lt $distance) {
         $previewTab = $tab
-        $previewLeft = $rect.Left
+        $distance = $gap
       }
     } catch {}
   }
@@ -55,7 +56,7 @@ function Find-PreviewGroup($window, $aioTab) {
   while ($null -ne $current) {
     try {
       $rect = $current.Current.BoundingRectangle
-      if ($rect.Height -gt 160 -and $rect.Right -le ($aioRect.Left + 24)) { return $current }
+      if ($rect.Height -gt 160 -and ($rect.Right -le ($aioRect.Left + 24) -or $rect.Left -ge ($aioRect.Right - 24))) { return $current }
       $current = $walker.GetParent($current)
     } catch { return $null }
   }

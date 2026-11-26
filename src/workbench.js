@@ -407,7 +407,8 @@ class WorkbenchHost {
     // Keep AIO in its own editor group. Locking this newly-created empty group
     // makes Explorer open files in another group even after the user clicks AIO.
     await this.previewGroup.captureBaseline()
-    await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
+    const explorerOnRight = this.vscode.workspace.getConfiguration('workbench.sideBar').get('location') === 'right'
+    await this.vscode.commands.executeCommand(explorerOnRight ? 'workbench.action.newGroupLeft' : 'workbench.action.newGroupRight')
     const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', this.vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
