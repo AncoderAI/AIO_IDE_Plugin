@@ -8,6 +8,8 @@ scripts/**
 dist/**
 node_modules/**
 DEVELOPMENT_PLAN.md
+AGENTS.md
+docs/user-input/**
 .gitignore
 .gitattributes
 **/*.map
