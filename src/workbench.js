@@ -414,7 +414,8 @@ class WorkbenchHost {
     // makes Explorer open files in another group even after the user clicks AIO.
     await this.previewGroup.captureBaseline()
     const explorerOnRight = this.vscode.workspace.getConfiguration('workbench.sideBar').get('location') === 'right'
-    await this.vscode.commands.executeCommand(explorerOnRight ? 'workbench.action.newGroupLeft' : 'workbench.action.newGroupRight')
+    if (explorerOnRight) await this.vscode.commands.executeCommand('workbench.action.moveSideBarLeft')
+    await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
     const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', this.vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,

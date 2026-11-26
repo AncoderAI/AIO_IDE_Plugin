@@ -17,11 +17,8 @@ exports.verifySplit = async function (window, frame) {
     const workbenchBox = await (await frame.frameElement()).boundingBox();
     assert.ok(fileBox?.width > 0 && workbenchBox?.width > 0, 'File and workbench must be visible');
     const side = await explorer.boundingBox();
-    if (side.x < workbenchBox.x) {
-      assert.ok(fileBox.x >= side.x + side.width - 2 && fileBox.x < workbenchBox.x, 'File preview must be between left Explorer and AIO');
-    } else {
-      assert.ok(fileBox.x > workbenchBox.x && fileBox.x + fileBox.width <= side.x + 2, 'File preview must be between AIO and right Explorer');
-    }
+    assert.ok(side && fileBox.x >= side.x + side.width - 2 && fileBox.x + fileBox.width <= workbenchBox.x + 2,
+      'Explorer, file preview, and AIO must appear in that order from left to right');
     assert.ok(fileBox.x + fileBox.width <= workbenchBox.x + 2 ||
       workbenchBox.x + workbenchBox.width <= fileBox.x + 2 ||
       fileBox.y + fileBox.height <= workbenchBox.y + 2 ||

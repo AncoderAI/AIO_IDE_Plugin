@@ -94,6 +94,10 @@ body:has(.app-shell) {
 .aio-panel-toggle-left,
 .aio-panel-toggle-right { flex: 0 0 auto; }
 
+.app-shell.aio-auto-hide-panels .title-toolbar__nav > .aio-panel-toggle-left {
+  display: inline-flex;
+}
+
 .aio-close-subpage {
   position: relative;
   z-index: 95;

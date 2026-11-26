@@ -50,15 +50,21 @@ async function verifyPreviewGroup(window, frame, project) {
   const previewEdge = frame.locator('.aio-file-preview-edge').first();
   await previewEdge.waitFor({ state: 'visible' });
   const sidebarButton = frame.locator('.aio-panel-toggle-left');
-  const previewButtonBox = await previewEdge.boundingBox();
-  const sidebarButtonBox = await sidebarButton.boundingBox();
-  assert.ok(previewButtonBox && sidebarButtonBox && previewButtonBox.x < sidebarButtonBox.x,
-    'File preview must appear to the left of the sidebar button.');
+  const assertButtonOrder = async () => {
+    await previewEdge.waitFor({ state: 'visible' });
+    await sidebarButton.waitFor({ state: 'visible' });
+    const previewButtonBox = await previewEdge.boundingBox();
+    const sidebarButtonBox = await sidebarButton.boundingBox();
+    assert.ok(previewButtonBox && sidebarButtonBox && previewButtonBox.x + previewButtonBox.width <= sidebarButtonBox.x + 1,
+      'File preview must appear to the left of the sidebar button.');
+  };
+  await assertButtonOrder();
   await previewEdge.hover();
   await waitFor(async () => (await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'left preview edge to restore the file group');
   const restoredEditor = await editor.boundingBox();
   const restoredWorkbench = await (await frame.frameElement()).boundingBox();
   assert.ok(restoredEditor && restoredWorkbench && separated(restoredEditor, restoredWorkbench));
+  await assertButtonOrder();
   const marker = 'AIO_PREVIEW_SAVED_73491';
   await editor.click();
   await window.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
@@ -68,7 +74,8 @@ async function verifyPreviewGroup(window, frame, project) {
   const workbench = frame.locator('.workbench');
   const workbenchBox = await workbench.boundingBox();
   await workbench.click({ position: { x: workbenchBox.width / 2, y: Math.min(80, workbenchBox.height / 2) } });
-  await waitFor(() => previewEdge.isVisible().catch(() => false), 'saved preview group to collapse');
+  await waitFor(async () => ((await editor.boundingBox())?.width || 0) < restoredEditor.width * 0.7, 'saved preview group to collapse');
+  await assertButtonOrder();
   await previewEdge.hover();
   await waitFor(async () => (await editor.boundingBox())?.width > restoredEditor.width * 0.7, 'saved preview group restore');
   assert.ok((await editor.locator('.view-lines').innerText()).includes(marker), 'Restored editor lost its saved model text.');

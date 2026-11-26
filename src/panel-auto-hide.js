@@ -62,15 +62,10 @@
     previewEdge.className = 'aio-file-preview-edge'
     previewEdge.textContent = '文件预览'
     previewEdge.setAttribute('aria-label', '显示文件预览')
-    previewEdge.hidden = true
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
     previewEdge.addEventListener('pointerenter', requestFilePreview)
     previewEdge.addEventListener('focus', requestFilePreview)
     previewEdge.addEventListener('click', requestFilePreview)
-    const onPreviewState = ({ data }) => {
-      if (data?.type === 'aio:file-preview-state') previewEdge.hidden = !data.collapsed
-    }
-    root.addEventListener('message', onPreviewState)
 
     const setPanel = (panel, visible) => {
       if (!panel) return
@@ -93,7 +88,7 @@
 
     const toolbarToggle = (side) => {
       if (!app) return
-      if (side === 'left') return app.querySelector('.title-toolbar__nav button:not(.aio-panel-toggle-left)')
+      if (side === 'left') return app.querySelector('.title-toolbar__nav button:not(.aio-panel-toggle-left, .aio-file-preview-edge)')
       const actions = app.querySelectorAll('.title-toolbar__actions button')
       return actions.length > 1 ? actions[1] : undefined
     }
@@ -231,8 +226,9 @@
 
     const ensureToolbarToggles = () => {
       const nav = app?.querySelector('.title-toolbar__nav')
-      if (nav && !leftToggle.isConnected) nav.prepend(leftToggle)
-      if (nav && !previewEdge.isConnected) leftToggle.before(previewEdge)
+      if (nav && (nav.firstElementChild !== previewEdge || previewEdge.nextElementSibling !== leftToggle)) {
+        nav.prepend(previewEdge, leftToggle)
+      }
       wireToggle(leftToggle, 'left')
       const actions = app?.querySelectorAll('.title-toolbar__actions button')
       const candidate = actions && actions.length > 1 ? actions[1] : undefined
@@ -376,7 +372,6 @@
       leftToggle.remove()
       rightToggle?.classList.remove('aio-panel-toggle-right')
       previewEdge.remove()
-      root.removeEventListener('message', onPreviewState)
       sidebar?.classList.remove('aio-panel-hidden')
       inspector?.classList.remove('aio-panel-hidden')
       app?.classList.remove('aio-auto-hide-panels')

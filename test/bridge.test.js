@@ -400,7 +400,8 @@ test('workbench panel gets a new locked editor group', async () => {
     assert.equal(result, panel)
     assert.deepEqual(actions, [
       'captureBaseline',
-      side === 'left' ? 'workbench.action.newGroupRight' : 'workbench.action.newGroupLeft',
+      ...(side === 'right' ? ['workbench.action.moveSideBarLeft'] : []),
+      'workbench.action.newGroupRight',
       'createWebviewPanel',
       'workbench.action.lockEditorGroup',
     ])
