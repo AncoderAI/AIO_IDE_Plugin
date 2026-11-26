@@ -19,10 +19,13 @@ function activate(context) {
     item.command = { command, title: label };
     return item;
   });
-  context.subscriptions.push(vscode.window.registerTreeDataProvider('aio.launchers', {
+  const launchers = {
     getChildren: parent => parent ? [] : entries,
     getTreeItem: item => item,
-  }));
+  };
+  for (const view of ['aio.launchers', 'aio.sidebarLaunchers']) {
+    context.subscriptions.push(vscode.window.registerTreeDataProvider(view, launchers));
+  }
 }
 
 module.exports = { activate };

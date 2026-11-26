@@ -2,7 +2,8 @@
   "name": "aio-ide",
   "displayName": "AIO · AI CLI 工作台",
   "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/AncoderAI/AIO_IDE_Plugin.git" },
@@ -36,7 +37,11 @@
         { "command": "aio.openWorkbench", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@8" }
       ]
     },
+    "viewsContainers": {
+      "activitybar": [{ "id": "aio", "title": "AIO", "icon": "media/activity.svg" }]
+    },
     "views": {
+      "aio": [{ "id": "aio.sidebarLaunchers", "name": "编程智能体", "when": "isWorkspaceTrusted" }],
       "explorer": [{ "id": "aio.launchers", "name": "AIO", "when": "isWorkspaceTrusted" }]
     },
     "configuration": {

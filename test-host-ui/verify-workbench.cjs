@@ -56,6 +56,12 @@ async function main() {
         '--extensionTestsPath=' + path.join(__dirname, 'open.cjs'), project],
     });
     const window = await app.firstWindow();
+    const aioTab = window.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i });
+    await aioTab.click();
+    const sidebar = window.locator('.part.sidebar');
+    for (const label of ['OMP', 'Claude Code', 'Codex', '完整工作台']) {
+      await sidebar.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+    }
     const errors = [];
     window.on('pageerror', (error) => errors.push(error.message));
     window.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text().slice(0, 300)); });
