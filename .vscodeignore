@@ -10,6 +10,7 @@ node_modules/**
 DEVELOPMENT_PLAN.md
 AGENTS.md
 docs/user-input/**
+docs/execution/**
 .gitignore
 .gitattributes
 **/*.map

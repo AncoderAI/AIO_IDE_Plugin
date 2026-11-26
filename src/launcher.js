@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { CLI_DEFINITIONS, discoverCli, discoverClis } = require('./discovery')
+const cliTerminals = new WeakSet()
 
 async function folderPathFromUri(uri) {
   if (!uri?.fsPath) return undefined
@@ -94,6 +95,7 @@ async function openCli(vscode, id, uri) {
     iconPath: new vscode.ThemeIcon('terminal'),
     ...launch,
   })
+  cliTerminals.add(terminal)
   terminal.show(false)
   // A tree or Quick Pick can still own keyboard focus while the panel is opening.
   // Let VS Code focus its input when the terminal widget is ready.
@@ -137,6 +139,18 @@ function registerLauncher(vscode, context) {
   register('aio.openClaude', (uri) => openCli(vscode, 'claude', uri))
   register('aio.openCodex', (uri) => openCli(vscode, 'codex', uri))
   register('aio.detectClis', () => reportDetection(vscode))
+  for (const [command, action] of [
+    ['aio.copyTerminalSelection', 'workbench.action.terminal.copySelection'],
+    ['aio.pasteIntoTerminal', 'workbench.action.terminal.paste'],
+  ]) {
+    register(command, () => {
+      if (cliTerminals.has(vscode.window.activeTerminal)) return vscode.commands.executeCommand(action)
+    })
+  }
+  const updateClipboardActions = (terminal) =>
+    vscode.commands.executeCommand('setContext', 'aio.activeCliTerminal', cliTerminals.has(terminal))
+  context.subscriptions.push(vscode.window.onDidChangeActiveTerminal(updateClipboardActions))
+  void updateClipboardActions(vscode.window.activeTerminal)
 }
 
 module.exports = {

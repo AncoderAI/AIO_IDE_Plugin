@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "AIO · AI CLI 工作台",
   "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -29,9 +29,19 @@
       { "command": "aio.openClaude", "category": "AIO", "title": "打开 Claude Code 终端" },
       { "command": "aio.openCodex", "category": "AIO", "title": "打开 Codex 终端" },
       { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" },
+      { "command": "aio.copyTerminalSelection", "category": "AIO", "title": "复制终端选区", "icon": "$(copy)", "enablement": "aio.activeCliTerminal && terminalTextSelected" },
+      { "command": "aio.pasteIntoTerminal", "category": "AIO", "title": "粘贴到终端", "icon": "$(clippy)", "enablement": "aio.activeCliTerminal" },
       { "command": "aio.openWorkbench", "category": "AIO", "title": "打开完整工作台" }
     ],
     "menus": {
+      "view/title": [
+        { "command": "aio.copyTerminalSelection", "when": "view == terminal && aio.activeCliTerminal", "group": "navigation@1" },
+        { "command": "aio.pasteIntoTerminal", "when": "view == terminal && aio.activeCliTerminal", "group": "navigation@2" }
+      ],
+      "commandPalette": [
+        { "command": "aio.copyTerminalSelection", "when": "aio.activeCliTerminal" },
+        { "command": "aio.pasteIntoTerminal", "when": "aio.activeCliTerminal" }
+      ],
       "explorer/context": [
         { "command": "aio.openTerminal", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@7" },
         { "command": "aio.openWorkbench", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@8" }

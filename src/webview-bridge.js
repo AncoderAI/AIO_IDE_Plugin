@@ -14,6 +14,27 @@
   const pending = new Map()
   const listeners = new Map()
 
+  function terminalForEvent(event) {
+    const element = event.target
+    return element && typeof element.closest === 'function' ? element.closest('.xterm') : null
+  }
+
+  function onTerminalClipboardShortcut(event) {
+    if (event.type !== 'keydown' || !event.shiftKey || (!event.ctrlKey && !event.metaKey) || event.altKey || !terminalForEvent(event)) return
+    const key = String(event.key).toLowerCase()
+    if (key !== 'c' && key !== 'v') return
+    // Keep these OS clipboard shortcuts out of xterm's input encoder. The
+    // browser's trusted copy/paste event is still handled by xterm itself,
+    // including its internal selection and bracketed-paste mode.
+    event.stopImmediatePropagation()
+    if (key === 'c' && target.document?.execCommand) {
+      event.preventDefault()
+      target.document.execCommand('copy')
+    }
+  }
+
+  target.addEventListener('keydown', onTerminalClipboardShortcut, true)
+
   function invoke(command, args) {
     const id = nextId++
     return new Promise((resolve, reject) => {

@@ -5,7 +5,39 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
+
+async function waitForFile(filename, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await fs.stat(filename).catch(() => null)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for ' + filename);
+}
+
+async function preserveWindowsClipboard(root) {
+  if (process.platform !== 'win32') return async () => {};
+  const ready = path.join(root, 'clipboard-ready');
+  const restore = path.join(root, 'clipboard-restore');
+  const helper = spawn('powershell.exe', [
+    '-NoProfile', '-NonInteractive', '-STA', '-File',
+    path.join(__dirname, 'preserve-clipboard.ps1'), ready, restore,
+  ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let error = '';
+  helper.stderr.on('data', chunk => { error += chunk; });
+  await Promise.race([
+    waitForFile(ready),
+    new Promise((_, reject) => helper.once('exit', code => reject(new Error(`Clipboard helper exited ${code}: ${error}`)))),
+  ]);
+  return async () => {
+    await fs.writeFile(restore, 'restore');
+    await Promise.race([
+      new Promise((resolve, reject) => helper.once('exit', code => code === 0 ? resolve() : reject(new Error(`Clipboard restore failed ${code}: ${error}`)))),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Clipboard restore timed out')), 10000)),
+    ]);
+  };
+}
 
 async function installVsix(code, vsix, profileArguments) {
   const directory = path.dirname(code);
@@ -31,14 +63,23 @@ async function main() {
   if (!code || !path.isAbsolute(code)) throw new Error('Set VSCODE_EXECUTABLE_PATH to the absolute path of Code.exe.');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-webview-'));
   const project = path.join(root, 'project');
+  const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1';
   await fs.mkdir(project);
   let app;
+  let restoreClipboard = async () => {};
   try {
+    if (clipboardTest) restoreClipboard = await preserveWindowsClipboard(root);
     if (process.platform === 'win32') {
       const settings = {};
       for (const cli of ['omp', 'claude', 'codex']) {
         const shim = path.join(root, cli + '.cmd');
-        await fs.writeFile(shim, ['@echo off', 'set /p "typed="', '> ' + cli + '.focus echo %typed%', ''].join('\r\n'));
+        const commands = ['@echo off', 'chcp 65001 >nul'];
+        if (clipboardTest && cli === 'omp') commands.push(
+          'for /L %%i in (1,1,80) do echo AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY AIO-COPY',
+          `> "${path.join(project, cli + '.ready')}" echo ready`,
+        );
+        commands.push('set /p "typed="', '> ' + cli + '.focus echo %typed%', '');
+        await fs.writeFile(shim, commands.join('\r\n'));
         settings['aio.' + cli + 'Path'] = shim;
       }
       const user = path.join(root, 'profile', 'User');
@@ -97,8 +138,47 @@ async function main() {
           for (const [cli, label] of [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]) {
             await sidebar.getByText(label, { exact: true }).click();
             await window.waitForFunction(() => !!document.activeElement?.closest('.xterm'));
-            const token = 'focus-' + cli;
-            await window.keyboard.type(token);
+            const token = clipboardTest && cli === 'omp' ? '粘贴-终端-OMP' : 'focus-' + cli;
+            if (clipboardTest && cli === 'omp') {
+              await waitForFile(path.join(project, cli + '.ready'));
+              await new Promise(resolve => setTimeout(resolve, 300));
+              const screen = window.locator('.panel .xterm-screen').last();
+              const box = await screen.boundingBox();
+              assert.ok(box, 'The OMP terminal screen must be visible.');
+              const copy = window.locator('.panel .title-actions').getByRole('button', { name: '复制终端选区' });
+              await copy.waitFor({ state: 'visible' });
+              let copied = '';
+              const marker = 'AIO-COPY';
+              // The fixture fills the viewport so mouse selection does not depend
+              // on a particular font, row height, or terminal startup position.
+              const y = box.y + box.height / 2;
+              await app.evaluate(({ clipboard }) => clipboard.writeText(''));
+              await window.mouse.move(box.x + box.width / 3, y);
+              await window.mouse.down();
+              await window.mouse.move(box.x + box.width * 2 / 3, y, { steps: 8 });
+              await window.mouse.up();
+              const selectionDeadline = Date.now() + 2000;
+              while (Date.now() < selectionDeadline && !(await copy.isEnabled())) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
+              if (await copy.isEnabled()) {
+                await copy.click();
+                const copyDeadline = Date.now() + 2000;
+                while (Date.now() < copyDeadline && !copied.includes(marker)) {
+                  copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+                  if (!copied.includes(marker)) await new Promise(resolve => setTimeout(resolve, 50));
+                }
+              }
+              assert.ok(copied.includes(marker), 'The terminal title copy action did not copy the mouse selection.');
+
+              await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), token);
+              await window.getByRole('button', { name: '粘贴到终端' }).click();
+              await new Promise(resolve => setTimeout(resolve, 300));
+              assert.equal(await fs.stat(path.join(project, cli + '.focus')).catch(() => null), null,
+                'Pasting must fill the CLI input without submitting it.');
+            } else {
+              await window.keyboard.type(token);
+            }
             await window.keyboard.press('Enter');
             const output = path.join(project, cli + '.focus');
             const until = Date.now() + 10000;
@@ -116,6 +196,7 @@ async function main() {
     throw new Error('Workbench React root did not render. ' + errors.slice(-15).join('\n'));
   } finally {
     if (app) await app.close();
+    await restoreClipboard();
     await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
   }
 }

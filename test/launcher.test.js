@@ -99,6 +99,7 @@ test('working directory supports multi-root selection and folder URIs', async ()
 function vscodeMock({ trusted = true, configuredPath } = {}) {
   const callbacks = new Map()
   const terminals = []
+  const actions = []
   const vscode = {
     ThemeIcon: class ThemeIcon { constructor(id) { this.id = id } },
     commands: {
@@ -106,12 +107,13 @@ function vscodeMock({ trusted = true, configuredPath } = {}) {
         callbacks.set(name, callback)
         return { dispose() {} }
       },
-      executeCommand: async () => undefined,
+      executeCommand: async (command) => { actions.push(command) },
     },
     window: {
+      onDidChangeActiveTerminal: () => ({ dispose() {} }),
       activeTextEditor: undefined,
       createTerminal: (options) => {
-        const terminal = { options, shown: false, show() { this.shown = true } }
+        const terminal = { options, show(preserveFocus) { this.preserveFocus = preserveFocus } }
         terminals.push(terminal)
         return terminal
       },
@@ -127,7 +129,7 @@ function vscodeMock({ trusted = true, configuredPath } = {}) {
       workspaceFolders: [],
     },
   }
-  return { vscode, callbacks, terminals }
+  return { vscode, callbacks, terminals, actions }
 }
 
 test('registers all public commands and starts a configured CLI terminal', async () => {
@@ -135,18 +137,28 @@ test('registers all public commands and starts a configured CLI terminal', async
   const executable = path.join(directory, process.platform === 'win32' ? 'omp.exe' : 'omp')
   await fs.writeFile(executable, '')
   if (process.platform !== 'win32') await fs.chmod(executable, 0o755)
-  const { vscode, callbacks, terminals } = vscodeMock({ configuredPath: executable })
+  const { vscode, callbacks, terminals, actions } = vscodeMock({ configuredPath: executable })
   const context = { subscriptions: [] }
   registerLauncher(vscode, context)
 
   assert.deepEqual([...callbacks.keys()], [
     'aio.openTerminal', 'aio.openOmp', 'aio.openClaude', 'aio.openCodex', 'aio.detectClis',
+    'aio.copyTerminalSelection', 'aio.pasteIntoTerminal',
   ])
-  assert.equal(context.subscriptions.length, 5)
+  assert.equal(context.subscriptions.length, 8)
   await callbacks.get('aio.openOmp')()
   assert.equal(terminals.length, 1)
   assert.equal(terminals[0].options.cwd, 'D:\\selected')
-  assert.equal(terminals[0].shown, true)
+  assert.equal(terminals[0].preserveFocus, false)
+  assert.ok(actions.includes('workbench.action.terminal.focus'))
+  vscode.window.activeTerminal = terminals[0]
+  await callbacks.get('aio.copyTerminalSelection')()
+  await callbacks.get('aio.pasteIntoTerminal')()
+  assert.deepEqual(actions.slice(-2), ['workbench.action.terminal.copySelection', 'workbench.action.terminal.paste'])
+  vscode.window.activeTerminal = { name: 'other terminal' }
+  const before = actions.length
+  await callbacks.get('aio.pasteIntoTerminal')()
+  assert.equal(actions.length, before)
 })
 
 test('does not launch from an untrusted workspace', async () => {

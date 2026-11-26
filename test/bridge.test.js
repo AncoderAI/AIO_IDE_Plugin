@@ -25,6 +25,31 @@ test('webview bridge correlates requests and forwards named events', async () =>
   unlisten()
 })
 
+test('webview keeps terminal copy and paste shortcuts in the browser clipboard path', () => {
+  const target = new EventEmitter()
+  target.addEventListener = target.on.bind(target)
+  let copies = 0
+  target.document = { execCommand: (command) => { if (command === 'copy') copies++; return true } }
+  createTauriBridge({ postMessage() {} }, target)
+  const xterm = { closest: (selector) => selector === '.xterm' ? xterm : null }
+  const event = (key, extras = {}) => {
+    const state = { stopped: false, prevented: false }
+    target.emit('keydown', {
+      type: 'keydown', key, target: xterm, ctrlKey: true, shiftKey: true, metaKey: false, altKey: false,
+      stopImmediatePropagation: () => { state.stopped = true },
+      preventDefault: () => { state.prevented = true },
+      ...extras,
+    })
+    return state
+  }
+
+  assert.deepEqual(event('c'), { stopped: true, prevented: true })
+  assert.equal(copies, 1)
+  assert.deepEqual(event('v'), { stopped: true, prevented: false })
+  assert.deepEqual(event('c', { shiftKey: false }), { stopped: false, prevented: false })
+  assert.deepEqual(event('c', { target: { closest: () => null } }), { stopped: false, prevented: false })
+})
+
 test('workbench service uses NDJSON request response and event routing', async () => {
   const child = new EventEmitter()
   child.stdout = new PassThrough()
