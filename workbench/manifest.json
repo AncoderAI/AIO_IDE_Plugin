@@ -2,6 +2,14 @@
   "source": "Ancoder/AIO",
   "sourceVersion": "2.0.1",
   "sourceHead": "def7f85df4ccff835aac67e3c2a5eb431c356d29",
+  "syncedUpstreamCommits": [
+    "492adf86872f0bb05723e67a8290690c7baf506c"
+  ],
+  "syncedUpstreamFeatures": [
+    "windows-claude-discovery",
+    "coding-cli-executable-metadata",
+    "coding-cli-configured-executable"
+  ],
   "nodeTarget": "24",
   "platform": "win32",
   "architecture": "x64",

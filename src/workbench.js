@@ -600,7 +600,7 @@ class WorkbenchHost {
       args = [selection[0].fsPath]
     } else if (channel === 'coding-plugins:choose-executable') {
       if (args.length) throw new TypeError('Invalid executable picker request')
-      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false, canSelectMany: false, title: '选择 AI CLI 可执行文件' })
+      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false, canSelectMany: false, title: '选择 AI CLI 可执行文件', filters: process.platform === 'win32' ? { 'Windows 可执行文件': ['exe'] } : undefined })
       return selection?.[0]?.fsPath || null
     } else if (channel === 'app:take-open-folder') {
       if (args.length) throw new TypeError('Invalid open folder request')

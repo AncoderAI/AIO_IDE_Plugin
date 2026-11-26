@@ -20,12 +20,34 @@ const uiOutput = join(outputRoot, 'ui')
 const serviceOutput = join(outputRoot, 'service')
 const licenseOutput = join(outputRoot, 'licenses')
 const dependencyRoots = new Set()
+const syncedUpstreamCommits = Object.freeze([
+  '492adf86872f0bb05723e67a8290690c7baf506c',
+])
+const syncedUpstreamFeatures = Object.freeze([
+  'windows-claude-discovery',
+  'coding-cli-executable-metadata',
+  'coding-cli-configured-executable',
+])
 
 function requireFile(path, description) {
   if (!existsSync(path) || !statSync(path).isFile()) {
     throw new Error(`${description} was not found at ${path}`)
   }
   return path
+}
+
+function verifySyncedUpstreamFeatures() {
+  const checks = [
+    [join(spikeRoot, 'coding', 'windows-claude-discovery.ts'), ['export class WindowsClaudeDiscovery', "source: 'winget'", "source: 'npm'"]],
+    [join(spikeRoot, 'cli-plugins', 'registry.ts'), ['executableVersion', 'executableIssue', 'executableSource', 'setExecutable']],
+    [join(spikeRoot, 'workbench-service.ts'), ['WindowsClaudeDiscovery', "'coding-plugins:set-executable'"]],
+  ]
+  for (const [filename, anchors] of checks) {
+    const source = readFileSync(requireFile(filename, 'Synced AIO source'), 'utf8')
+    for (const anchor of anchors) {
+      if (!source.includes(anchor)) throw new Error(`AIO source is missing ${anchor} from ${syncedUpstreamCommits[0]}`)
+    }
+  }
 }
 
 function run(command, args, options = {}) {
@@ -456,6 +478,8 @@ function writeManifest(dependencies) {
     source: 'Ancoder/AIO',
     sourceVersion: sourcePackage.version,
     sourceHead: sourceHead(),
+    syncedUpstreamCommits,
+    syncedUpstreamFeatures,
     nodeTarget: '24',
     platform: process.platform,
     architecture: process.arch,
@@ -487,6 +511,8 @@ function setDefaultTheme() {
 
 async function main() {
   requireFile(join(sourceRoot, 'package.json'), 'AIO package')
+  verifySyncedUpstreamFeatures()
+  if (process.argv.includes('--verify-synced-upstream')) return
   if (process.argv.includes('--set-default-theme')) return setDefaultTheme()
   if (process.argv.includes('--patch-terminal-clipboard')) {
     patchGeneratedTerminalClipboard()
