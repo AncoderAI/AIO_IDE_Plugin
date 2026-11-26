@@ -127,6 +127,7 @@ async function main() {
           Boolean(window.__TAURI__ && document.querySelector('#root button') && document.querySelector('#root')?.innerText.trim())
         ).catch(() => false);
         if (!ready) continue;
+        await frame.waitForFunction(() => document.documentElement.dataset.theme === 'dark', undefined, { timeout: 10000 });
         const report = await frame.evaluate(async () => {
           const invoke = (channel, ...args) => window.__TAURI__.core.invoke('desktop_request', { channel, args });
           const [meta, plugins, projects] = await Promise.all([invoke('app:get-meta'), invoke('coding-plugins:list'), invoke('projects:list-initial')]);

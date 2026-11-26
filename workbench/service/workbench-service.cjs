@@ -26128,7 +26128,7 @@ function parseWindowsLegacyTombstone(value) {
 function defaultSettings() {
   const defaultShell = process.platform === "win32" ? process.env.ComSpec && (0, import_node_path12.isAbsolute)(process.env.ComSpec) ? process.env.ComSpec : "C:\\Windows\\System32\\cmd.exe" : process.env.SHELL?.startsWith("/") ? process.env.SHELL : "/bin/zsh";
   return {
-    theme: "system",
+    theme: "dark",
     locale: "zh-CN",
     interfaceFontScale: 110,
     sidebarOpen: true,

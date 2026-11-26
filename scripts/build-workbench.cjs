@@ -364,8 +364,24 @@ function writeManifest(dependencies) {
   require('node:fs').writeFileSync(join(outputRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 }
 
+function setDefaultTheme() {
+  const assets = join(uiOutput, 'assets')
+  const main = readdirSync(assets).find(name => /^main-.*\.js$/.test(name))
+  const files = [
+    [join(uiOutput, 'index.html'), /<html lang="en"(?: data-theme="[^"]*")?>/, '<html lang="en" data-theme="dark">'],
+    [join(assets, main), /theme:"(?:dark|system|light)",locale:"zh-CN"/, 'theme:"dark",locale:"zh-CN"'],
+    [join(serviceOutput, 'workbench-service.cjs'), /theme: "(?:system|dark|light)",(\s+locale: "zh-CN")/, 'theme: "dark",$1'],
+  ]
+  for (const [filename, pattern, replacement] of files) {
+    const source = readFileSync(filename, 'utf8')
+    if (!pattern.test(source)) throw new Error('Missing default theme declaration in ' + filename)
+    writeFileSync(filename, source.replace(pattern, replacement))
+  }
+}
+
 async function main() {
   requireFile(join(sourceRoot, 'package.json'), 'AIO package')
+  if (process.argv.includes('--set-default-theme')) return setDefaultTheme()
   if (process.argv.includes('--patch-terminal-clipboard')) {
     patchGeneratedTerminalClipboard()
     return
@@ -375,6 +391,7 @@ async function main() {
   rmSync(join(outputRoot, 'resources'), { recursive: true, force: true })
   await buildUi()
   await buildService()
+  setDefaultTheme()
   buildTerminalHost()
   copyNodePty()
   const dependencies = copyLicenses()
