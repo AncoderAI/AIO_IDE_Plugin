@@ -1,6 +1,12 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const {
+  compileClaudeFixture,
+  openFreshClaudeTerminal,
+  prepareClaudeFixture,
+  reopenWorkbench,
+} = require('./verify-workbench-clipboard.cjs');
 
 async function waitFor(predicate, description, timeout = 10000) {
   const deadline = Date.now() + timeout;
@@ -58,29 +64,70 @@ async function assertPinned(window, frame, sidebar, expectedTitle) {
   assert.equal((await sidebar.getAttribute('class') || '').includes('aio-panel-hidden'), false, `Sidebar collapsed on ${expectedTitle}.`);
 }
 
-async function verifyPageBack(window, frame) {
+async function assertFullPage(frame, sidebar, expectedTitle) {
+  await new Promise(resolve => setTimeout(resolve, 350));
+  const boxes = await frame.evaluate(() => {
+    const box = (selector) => {
+      const rect = document.querySelector(selector)?.getBoundingClientRect();
+      return rect && { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+    };
+    const visible = (selector) => [...document.querySelectorAll(selector)].filter(element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }).length;
+    return {
+      sidebar: box('.sidebar'),
+      toolbar: box('.title-toolbar'),
+      content: box('.workbench__content'),
+      page: box('.workbench-page'),
+      terminals: visible('.terminal-surface:not([hidden])'),
+      composers: visible('.coding-cli-composer, .conversation-bottom-dock'),
+    };
+  });
+  for (const name of ['sidebar', 'toolbar', 'content', 'page']) assert.ok(boxes[name], name + ' is missing on ' + expectedTitle + '.');
+  const near = (left, right, label) => assert.ok(Math.abs(left - right) <= 2,
+    expectedTitle + ' ' + label + ' differs by ' + Math.abs(left - right).toFixed(2) + 'px. ' + JSON.stringify(boxes));
+  near(boxes.page.top, boxes.toolbar.bottom, 'top');
+  near(boxes.page.bottom, boxes.content.bottom, 'bottom');
+  near(boxes.page.left, boxes.sidebar.right, 'left');
+  near(boxes.page.right, boxes.content.right, 'right');
+  assert.equal(boxes.terminals, 0, expectedTitle + ' left a visible terminal occupying page space.');
+  assert.equal(boxes.composers, 0, expectedTitle + ' left a visible composer occupying page space.');
+  assert.equal(await sidebar.isVisible(), true);
+  return boxes;
+}
+
+async function verifyPageBack(window, initialFrame, project) {
+  const executable = await compileClaudeFixture(project);
+  await prepareClaudeFixture(initialFrame, executable);
+  const frame = await reopenWorkbench(window, initialFrame);
   const workbenchTab = window.locator('.tabs-container .tab').filter({ hasText: 'AIO 工作台' });
   assert.equal(await workbenchTab.count(), 1);
   const initialTitle = await pageTitle(frame);
   assert.notEqual(initialTitle, '项目');
   assert.notEqual(initialTitle, '设置');
 
-  const terminalButton = frame.getByRole('button', { name: /(切换终端|Toggle terminal)/ }).first();
-  await terminalButton.click();
-  const terminal = frame.locator('.xterm').first();
-  await terminal.waitFor({ state: 'visible' });
+  const terminal = await openFreshClaudeTerminal(window, frame);
   await frame.evaluate(() => { window.__aioPageBackTerminal = document.querySelector('.xterm'); });
+  const composer = frame.locator('.coding-cli-composer textarea:visible, .composer textarea:visible').first();
+  await composer.click();
+  await window.keyboard.type('PAGE-BACK-DRAFT');
+  assert.equal(await composer.inputValue(), 'PAGE-BACK-DRAFT');
 
   let sidebar = await clickPage(frame, '项目');
   await assertPinned(window, frame, sidebar, '项目');
+  await assertFullPage(frame, sidebar, '项目');
   sidebar = await clickPage(frame, '设置');
   await assertPinned(window, frame, sidebar, '设置');
+  await assertFullPage(frame, sidebar, '设置');
 
   await closePage(frame);
   await waitFor(async () => await pageTitle(frame) === '项目', 'return to Projects');
   await assertPinned(window, frame, sidebar, '项目');
+  await assertFullPage(frame, sidebar, '项目');
   await closePage(frame);
-  await waitFor(async () => await pageTitle(frame) === initialTitle, 'return to session');
+  await waitFor(async () => (await frame.locator('.workbench-page').count()) === 0 && await terminal.isVisible(), 'return to session');
 
   await moveToWorkArea(window, frame);
   await waitFor(async () => await sidebar.getAttribute('data-collapsed') === 'true'
@@ -88,6 +135,8 @@ async function verifyPageBack(window, frame) {
   assert.equal(await terminal.isVisible(), true, 'Returning to session did not restore the existing terminal.');
   assert.equal(await frame.evaluate(() => document.querySelector('.xterm') === window.__aioPageBackTerminal), true,
     'Page navigation replaced or closed the terminal.');
+  assert.equal(await composer.isVisible(), true, 'Returning to session did not restore the composer.');
+  assert.equal(await composer.inputValue(), 'PAGE-BACK-DRAFT', 'Page navigation lost the unsent composer draft.');
   assert.equal(await workbenchTab.count(), 1, 'Page close button closed the AIO editor tab.');
 
   return {
@@ -95,6 +144,9 @@ async function verifyPageBack(window, frame) {
     sidebarPinnedOnPages: true,
     sidebarAutoHiddenOnSession: true,
     terminalPreserved: true,
+    composerDraftPreserved: true,
+    pagesFillAvailableArea: true,
+    noTerminalOrComposerOnPages: true,
     workbenchTabs: 1,
   };
 }

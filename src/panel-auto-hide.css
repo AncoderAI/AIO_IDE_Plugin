@@ -1,3 +1,7 @@
+body:has(.app-shell) {
+  padding-inline: 0;
+}
+
 .app-shell.aio-auto-hide-panels {
   --aio-project-panel-width: min(280px, 42vw);
 }
@@ -16,6 +20,27 @@
 
 .app-shell.aio-auto-hide-panels :is(.conversation-bottom-dock, .coding-cli-composer) {
   margin-right: clamp(9px, 2vw, 24px);
+}
+
+/* A child page owns the entire content column. The CLI and draft remain
+   mounted for Back, but do not claim any rows of the active page. */
+.app-shell .conversation-column:has(> .workbench-page) {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.app-shell .conversation-column:has(> .workbench-page) > :not(.workbench-page) {
+  display: none !important;
+}
+
+.app-shell .conversation-column > .workbench-page {
+  position: fixed;
+  inset: 52px 0 0 var(--aio-project-panel-width);
+  grid-area: 1 / 1;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  overflow: auto;
 }
 
 .app-shell.aio-auto-hide-panels > .sidebar,

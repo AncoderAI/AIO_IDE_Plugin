@@ -155,7 +155,7 @@ async function main() {
           return;
         }
         if (process.env.AIO_TEST_PAGE_BACK === '1') {
-          console.log(await require('./verify-page-back.cjs').verifyPageBack(window, frame));
+          console.log(await require('./verify-page-back.cjs').verifyPageBack(window, frame, project));
           return;
         }
         if (process.env.AIO_TEST_PANEL_ALIGNMENT === '1') {
