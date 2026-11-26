@@ -29,7 +29,10 @@ async function activate(context) {
     return item;
   });
   registerFileReferenceTree(vscode, context, workbenchHost, entries);
-  try { await resumeProjectHandoff(vscode, context, workbenchHost, path); }
+  try {
+    const resumed = await resumeProjectHandoff(vscode, context, workbenchHost, path);
+    if (!resumed && vscode.workspace.isTrusted) await workbenchHost.open();
+  }
   catch (error) { await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error)); }
 }
 
