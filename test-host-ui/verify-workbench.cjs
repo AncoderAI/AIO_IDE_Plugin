@@ -179,10 +179,20 @@ async function main() {
           assert.equal(await frame.locator('[data-provider="claude"] .aio-history-results').innerText(), '');
           const receipt = path.join(project, 'codex-resume.args');
           assert.equal(await fs.stat(receipt).catch(() => null), null);
-          await session.click();
+          const historyIndex = path.join(env.CODEX_HOME, 'state_5.sqlite');
+          await fs.rename(historyIndex, historyIndex + '.offline');
+          const { reopenWorkbench } = require('./verify-workbench-clipboard.cjs');
+          const reopened = await reopenWorkbench(window, frame);
+          await reopened.getByRole('button', { name: '显示左侧栏', exact: true }).hover();
+          const cachedSession = reopened.getByRole('button', { name: 'Codex · AIO CODEX HISTORY FIXTURE', exact: true });
+          await cachedSession.waitFor();
+          assert.equal(await reopened.getByText('加载历史会话', { exact: false }).count(), 0);
+          assert.equal(await fs.stat(receipt).catch(() => null), null);
+          await fs.rename(historyIndex + '.offline', historyIndex);
+          await cachedSession.click();
           await waitForFile(receipt);
           assert.equal((await fs.readFile(receipt, 'utf8')).trim(), 'resume 11111111-1111-4111-8111-111111111111');
-          console.log('Three lazy history controls, first-input label, and explicit CLI resume verified');
+          console.log('First-input label survives reopening with the history index offline; explicit CLI resume verified');
           return;
         }
         if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {

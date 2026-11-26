@@ -20,34 +20,41 @@ if (typeof window !== 'undefined') {
     const results = document.createElement('div')
     results.className = 'aio-history-results'
     results.setAttribute('aria-live', 'polite')
+    let clicked = false
+    const showRows = rows => {
+      results.replaceChildren()
+      if (!rows.length) results.textContent = '没有历史会话'
+      for (const row of rows) {
+        const title = label + ' · ' + row.title
+        const item = button(title, async () => {
+          item.disabled = true
+          try {
+            await invoke('aio-history:resume', [project, provider, row.id])
+          } catch (error) {
+            status.textContent = error.message
+          } finally { item.disabled = false }
+        })
+        const status = document.createElement('span')
+        status.setAttribute('role', 'status')
+        item.title = Number.isFinite(row.updatedAt) ? title + '\n' + new Date(row.updatedAt).toLocaleString() : title
+        results.append(item, status)
+      }
+      if (rows.length) load.hidden = true
+    }
     const load = button(label, async () => {
+      clicked = true
       load.disabled = true
       results.textContent = '正在加载…'
       try {
-        const rows = await invoke('aio-history:list', [project, provider])
-        results.replaceChildren()
-        if (!rows.length) results.textContent = '没有历史会话'
-        for (const row of rows) {
-          const title = label + ' · ' + row.title
-          const item = button(title, async () => {
-            item.disabled = true
-            try {
-              await invoke('aio-history:resume', [project, provider, row.id])
-            } catch (error) {
-              status.textContent = error.message
-            } finally { item.disabled = false }
-          })
-          const status = document.createElement('span')
-          status.setAttribute('role', 'status')
-          item.title = Number.isFinite(row.updatedAt) ? title + '\n' + new Date(row.updatedAt).toLocaleString() : title
-          results.append(item, status)
-        }
-        if (rows.length) load.hidden = true
+        showRows(await invoke('aio-history:list', [project, provider]))
       } catch (error) {
         results.textContent = error.message
       } finally { load.disabled = false }
     })
     section.append(load, results)
+    void invoke('aio-history:cached', [project, provider]).then(rows => {
+      if (!clicked && rows.length) showRows(rows)
+    }).catch(() => {})
     return section
   }
 

@@ -6,7 +6,7 @@ const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
-const { LazyHistory, key, providers, queryWithNode } = require('./lazy-history')
+const { LazyHistory, key, previewKey, providers, queryWithNode } = require('./lazy-history')
 const { openCli } = require('./launcher')
 const { PreviewGroupController } = require('./preview-group')
 const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
@@ -597,7 +597,7 @@ class WorkbenchHost {
     }
     if (channel === 'app:refresh-coding-cli-history') return null
     if (channel === 'projects:list') return service.request('projects:list-initial', [])
-    if (channel === 'aio-history:list' || channel === 'aio-history:resume') {
+    if (['aio-history:cached', 'aio-history:list', 'aio-history:resume'].includes(channel)) {
       const [folder, provider, id] = args
       if (this.vscode.workspace.isTrusted === false || typeof folder !== 'string' ||
           !path.isAbsolute(folder) || !providers.has(provider)) throw new Error('无效的历史会话请求')
@@ -605,7 +605,13 @@ class WorkbenchHost {
       const project = records.find(row => key(row.primaryFolder || row.path) === key(folder))
       if (!project) throw new Error('该目录不是 AIO 已登记的项目')
       const cwd = project.primaryFolder || project.path
-      if (channel === 'aio-history:list') {
+      const previews = this.context.workspaceState
+      const cacheKey = previewKey(cwd, provider)
+      const saved = previews?.get(cacheKey, []) || []
+      if (channel === 'aio-history:cached') return saved
+      const clickedCachedSession = channel === 'aio-history:resume' && saved.some(row => row.id === id) &&
+        !this.history.hasCatalog(cwd, provider)
+      if (channel === 'aio-history:list' || clickedCachedSession) {
         const buckets = []
         const storage = this.context.storageUri || this.context.globalStorageUri
         if (provider === 'omp' && storage) {
@@ -616,7 +622,9 @@ class WorkbenchHost {
             }
           }
         }
-        return this.history.list(cwd, provider, buckets)
+        const rows = await this.history.list(cwd, provider, buckets)
+        await previews?.update(cacheKey, rows)
+        if (channel === 'aio-history:list') return rows
       }
       const sessionArgs = this.history.resumeArgs(cwd, provider, id)
       const config = this.context.asAbsolutePath('workbench/service/aio-omp-config.yml')

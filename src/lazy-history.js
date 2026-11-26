@@ -7,6 +7,7 @@ const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
 
 const providers = new Set(['omp', 'claude', 'codex'])
+const { createHash } = require('node:crypto')
 const sessionId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 const MAX_ROWS = 100
 const readLimit = 32768
@@ -14,6 +15,11 @@ const readLimit = 32768
 function key(value) {
   const normalized = path.resolve(value)
   return process.platform === 'win32' ? normalized.toLowerCase() : normalized
+}
+
+function previewKey(cwd, provider) {
+  const digest = createHash('sha256').update(key(cwd)).digest('hex')
+  return 'aio.history-preview.v1.' + digest + '.' + provider
 }
 
 function compactTitle(value) {
@@ -140,6 +146,10 @@ class LazyHistory {
     if (!row) throw new Error('请先加载该项目的历史会话')
     return provider === 'codex' ? ['resume', row.id] : ['--resume', provider === 'omp' ? row.filename : row.id]
   }
+
+  hasCatalog(cwd, provider) {
+    return this.catalogs.has(JSON.stringify([key(cwd), provider]))
+  }
 }
 
 async function queryWithNode(runtime, filename, cwd) {
@@ -157,4 +167,4 @@ async function queryWithNode(runtime, filename, cwd) {
   return JSON.parse(stdout)
 }
 
-module.exports = { LazyHistory, codexRows, key, providers, queryWithNode }
+module.exports = { LazyHistory, codexRows, key, previewKey, providers, queryWithNode }
