@@ -59,8 +59,13 @@ async function verifyPreviewGroup(window, frame, project) {
       'File preview must appear to the left of the sidebar button.');
   };
   await assertButtonOrder();
+  assert.equal(await previewEdge.getAttribute('aria-keyshortcuts'), null);
   await frame.locator('.title-toolbar__identity').click();
   await window.keyboard.press('Control+f');
+  await window.keyboard.press('Escape');
+  assert.ok(((await editor.boundingBox())?.width || 0) < beforeEditor.width * 0.7,
+    'Ctrl+F must leave the file preview collapsed.');
+  await previewEdge.hover();
   await waitFor(async () => (await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'left preview edge to restore the file group');
   const restoredEditor = await editor.boundingBox();
   const restoredWorkbench = await (await frame.frameElement()).boundingBox();
