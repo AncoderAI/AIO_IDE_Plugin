@@ -59,7 +59,8 @@ async function verifyPreviewGroup(window, frame, project) {
       'File preview must appear to the left of the sidebar button.');
   };
   await assertButtonOrder();
-  await previewEdge.hover();
+  await frame.locator('.title-toolbar__identity').click();
+  await window.keyboard.press('Control+f');
   await waitFor(async () => (await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'left preview edge to restore the file group');
   const restoredEditor = await editor.boundingBox();
   const restoredWorkbench = await (await frame.frameElement()).boundingBox();
@@ -81,6 +82,9 @@ async function verifyPreviewGroup(window, frame, project) {
   assert.ok((await editor.locator('.view-lines').innerText()).includes(marker), 'Restored editor lost its saved model text.');
 
   await editor.click();
+  await window.keyboard.press('Control+f');
+  await window.locator('.monaco-editor .find-widget.visible').waitFor({ state: 'visible' });
+  await window.keyboard.press('Escape');
   await window.evaluate(() => { window.__aioPreviewFocus = document.activeElement; });
   await workbench.hover({ position: { x: workbenchBox.width / 2, y: Math.min(80, workbenchBox.height / 2) } });
   assert.equal(await window.evaluate(() => document.activeElement === window.__aioPreviewFocus), true,

@@ -62,10 +62,21 @@
     previewEdge.className = 'aio-file-preview-edge'
     previewEdge.textContent = '文件预览'
     previewEdge.setAttribute('aria-label', '显示文件预览')
+    previewEdge.setAttribute('aria-keyshortcuts', 'Control+F')
+    previewEdge.title = '文件预览 (Ctrl+F)'
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
     previewEdge.addEventListener('pointerenter', requestFilePreview)
     previewEdge.addEventListener('focus', requestFilePreview)
     previewEdge.addEventListener('click', requestFilePreview)
+    const onPreviewShortcut = (event) => {
+      if (!previewEdge.isConnected || event.shiftKey || !event.ctrlKey || event.altKey || event.metaKey ||
+          event.isComposing || event.key.toLowerCase() !== 'f' ||
+          event.target?.closest?.('input, textarea, select, [contenteditable], .xterm')) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (!event.repeat) requestFilePreview()
+    }
+    root.addEventListener('keydown', onPreviewShortcut, true)
 
     const setPanel = (panel, visible) => {
       if (!panel) return
@@ -372,6 +383,7 @@
       leftToggle.remove()
       rightToggle?.classList.remove('aio-panel-toggle-right')
       previewEdge.remove()
+      root.removeEventListener('keydown', onPreviewShortcut, true)
       sidebar?.classList.remove('aio-panel-hidden')
       inspector?.classList.remove('aio-panel-hidden')
       app?.classList.remove('aio-auto-hide-panels')
