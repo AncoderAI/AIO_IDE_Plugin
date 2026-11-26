@@ -6,10 +6,16 @@ const { registerWorkbench } = require('./workbench');
 const { registerFileReferenceTree } = require('./file-reference-tree');
 const path = require('node:path');
 const { resumeProjectHandoff } = require('./project-handoff');
+const { ProjectRegistry } = require('./project-registry');
 
 async function activate(context) {
   registerLauncher(vscode, context);
-  const workbenchHost = registerWorkbench(vscode, context);
+  const projectRegistry = new ProjectRegistry(vscode, context);
+  context.subscriptions.push(projectRegistry);
+  await projectRegistry.start();
+  const workbenchHost = registerWorkbench(vscode, context, { projectRegistry });
+  projectRegistry.setProjectImporter((paths) => workbenchHost.addProjectCandidates(
+    paths.map((value) => ({ kind: 'path', value })), true));
 
   const entries = [
     ['OMP', 'aio.openOmp'],

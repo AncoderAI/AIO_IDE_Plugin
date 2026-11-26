@@ -334,6 +334,7 @@ class WorkbenchHost {
       await this.vscode.window.showWarningMessage('请拖入有效的文件夹。工作台内只接受当前 VS Code 工作区中的目录。')
       return 0
     }
+    await this.options.projectRegistry?.markActivePaths?.(directories, true)
     let queued = 0
     for (const directory of directories) {
       if (this.openFolders.includes(directory)) continue
@@ -459,6 +460,7 @@ class WorkbenchHost {
         if (this.service === service && this.panel === panel) void this.vscode.window.showErrorMessage(message)
       })
       service.start()
+      await this.options.projectRegistry?.syncService?.(service)
       this.notifyPanelChanged()
       const uiUri = panel.webview.asWebviewUri(this.vscode.Uri.file(uiRoot))
       const bridgeUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'webview-bridge.js'))))
@@ -473,6 +475,7 @@ class WorkbenchHost {
       return panel
     } catch (error) {
       if (this.service === service) this.service = undefined
+      this.options.projectRegistry?.detachService?.(service)
       service?.stop()
       if (this.panel === panel) {
         this.panel = undefined
@@ -581,6 +584,13 @@ class WorkbenchHost {
     // The shared renderer reads the task list at startup even on the Tauri
     // backend, which has no scheduled tasks.
     if (channel === 'long-run:list-tasks' && args.length === 0) return []
+    if (channel === 'projects:remove') {
+      const projects = await service.request('projects:list-initial', [])
+      const project = projects.find((candidate) => candidate.id === args[0])
+      const removed = await service.request(channel, args)
+      if (removed && project) await this.options.projectRegistry?.markRemovedPath?.(project.primaryFolder || project.path)
+      return removed
+    }
     if (channel === 'projects:add-selected') throw new Error('请通过 VS Code 的目录选择器添加项目')
     if (channel === 'projects:add') {
       const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, title: '选择 AIO 项目目录' })
@@ -631,6 +641,7 @@ class WorkbenchHost {
     this.terminalClipboardRequests.clear()
     const service = this.service
     this.service = undefined
+    this.options.projectRegistry?.detachService?.(service)
     service?.stop()
     for (const disposable of this.disposables.splice(0)) disposable.dispose()
   }
