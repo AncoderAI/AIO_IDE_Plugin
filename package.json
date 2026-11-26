@@ -17,7 +17,8 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "prepackage": "node -e \"require('node:fs').mkdirSync('dist', {recursive:true})\"",
+    "build:workbench": "node scripts/build-workbench.cjs",
+    "prepackage": "node scripts/check-workbench.cjs",
     "package": "vsce package --no-dependencies --out dist/aio-ide.vsix"
   },
   "contributes": {
@@ -26,11 +27,13 @@
       { "command": "aio.openOmp", "category": "AIO", "title": "打开 OMP 终端" },
       { "command": "aio.openClaude", "category": "AIO", "title": "打开 Claude Code 终端" },
       { "command": "aio.openCodex", "category": "AIO", "title": "打开 Codex 终端" },
-      { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" }
+      { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" },
+      { "command": "aio.openWorkbench", "category": "AIO", "title": "打开完整工作台" }
     ],
     "menus": {
       "explorer/context": [
-        { "command": "aio.openTerminal", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@7" }
+        { "command": "aio.openTerminal", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@7" },
+        { "command": "aio.openWorkbench", "when": "explorerResourceIsFolder && isWorkspaceTrusted", "group": "navigation@8" }
       ]
     },
     "views": {

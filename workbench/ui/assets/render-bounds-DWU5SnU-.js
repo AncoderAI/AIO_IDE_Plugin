@@ -1,0 +1,2 @@
+function c(n,o){const a=Math.max(0,Math.floor(o));return n.slice(Math.max(0,n.length-a))}function r(n,o,a){const i=Math.max(0,Math.floor(o));return n.length>i?`${n.slice(0,i)}${a}`:n}function u(n,o,a){const i=Math.max(0,Math.floor(o)),s=Math.max(0,Math.floor(a)),t=n.slice(0,i),l=[];let e=0;for(;l.length<s&&e<=t.length;){const h=t.indexOf(`
+`,e);if(h===-1){l.push(t.slice(e)),e=t.length+1;break}l.push(t.slice(e,h)),e=h+1}return{lines:l,truncated:n.length>t.length||e<t.length}}export{u as a,r as b,c as n};
