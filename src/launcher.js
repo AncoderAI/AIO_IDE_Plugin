@@ -94,7 +94,12 @@ async function openCli(vscode, id, uri) {
     iconPath: new vscode.ThemeIcon('terminal'),
     ...launch,
   })
-  terminal.show()
+  terminal.show(false)
+  // A tree or Quick Pick can still own keyboard focus while the panel is opening.
+  // Let VS Code focus its input when the terminal widget is ready.
+  if (vscode.workspace.getConfiguration('terminal.integrated').get('defaultLocation') !== 'editor') {
+    await vscode.commands.executeCommand('workbench.action.terminal.focus')
+  }
   return terminal
 }
 

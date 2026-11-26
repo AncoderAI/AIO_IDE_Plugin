@@ -34,6 +34,17 @@ async function main() {
   await fs.mkdir(project);
   let app;
   try {
+    if (process.platform === 'win32') {
+      const settings = {};
+      for (const cli of ['omp', 'claude', 'codex']) {
+        const shim = path.join(root, cli + '.cmd');
+        await fs.writeFile(shim, ['@echo off', 'set /p "typed="', '> ' + cli + '.focus echo %typed%', ''].join('\r\n'));
+        settings['aio.' + cli + 'Path'] = shim;
+      }
+      const user = path.join(root, 'profile', 'User');
+      await fs.mkdir(user, { recursive: true });
+      await fs.writeFile(path.join(user, 'settings.json'), JSON.stringify(settings));
+    }
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
     const profileArgs = ['--user-data-dir=' + path.join(root, 'profile'), '--extensions-dir=' + path.join(root, 'extensions')];
@@ -82,6 +93,21 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        if (process.platform === 'win32') {
+          for (const [cli, label] of [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]) {
+            await sidebar.getByText(label, { exact: true }).click();
+            await window.waitForFunction(() => !!document.activeElement?.closest('.xterm'));
+            const token = 'focus-' + cli;
+            await window.keyboard.type(token);
+            await window.keyboard.press('Enter');
+            const output = path.join(project, cli + '.focus');
+            const until = Date.now() + 10000;
+            while (Date.now() < until && !(await fs.readFile(output, 'utf8').catch(() => '')).trim()) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            assert.equal((await fs.readFile(output, 'utf8')).trim(), token);
+          }
+        }
         console.log(JSON.stringify(report));
         return;
       }
