@@ -168,9 +168,13 @@ async function main() {
           await entries.first().waitFor();
           assert.equal(await entries.count(), 3);
           assert.equal(await frame.getByText('AIO CODEX HISTORY FIXTURE', { exact: true }).count(), 0);
-          await frame.getByRole('button', { name: 'Codex · 加载历史会话', exact: true }).click();
-          const session = frame.getByRole('button', { name: 'AIO CODEX HISTORY FIXTURE', exact: true });
+          const codexEntry = entries.locator('button').filter({ hasText: /^Codex$/ });
+          assert.deepEqual(await entries.getByRole('button').allTextContents(), ['OMP', 'Claude Code', 'Codex']);
+          await codexEntry.click();
+          const session = frame.getByRole('button', { name: 'Codex · AIO CODEX HISTORY FIXTURE', exact: true });
           await session.waitFor();
+          assert.equal(await codexEntry.isVisible(), false);
+          assert.equal(await session.evaluate(element => getComputedStyle(element).whiteSpace), 'nowrap');
           assert.equal(await frame.locator('[data-provider="omp"] .aio-history-results').innerText(), '');
           assert.equal(await frame.locator('[data-provider="claude"] .aio-history-results').innerText(), '');
           const receipt = path.join(project, 'codex-resume.args');

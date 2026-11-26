@@ -153,13 +153,16 @@ body:has(.app-shell) {
   gap: 2px;
   margin: 2px 8px 8px 24px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
+
+.aio-history-provider { min-width: 0; }
 
 .aio-history-entries button {
   display: block;
-  max-width: 100%;
-  padding: 3px 5px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
   overflow: hidden;
   border-radius: 4px;
   background: transparent;
@@ -169,4 +172,5 @@ body:has(.app-shell) {
 }
 
 .aio-history-entries button:hover { background: var(--surface-hover); }
-.aio-history-results { margin-left: 5px; overflow-wrap: anywhere; }
+.aio-history-entries button[hidden] { display: none; }
+.aio-history-results { min-width: 0; overflow-wrap: anywhere; }

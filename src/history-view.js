@@ -20,7 +20,7 @@ if (typeof window !== 'undefined') {
     const results = document.createElement('div')
     results.className = 'aio-history-results'
     results.setAttribute('aria-live', 'polite')
-    const load = button(label + ' · 加载历史会话', async () => {
+    const load = button(label, async () => {
       load.disabled = true
       results.textContent = '正在加载…'
       try {
@@ -28,7 +28,8 @@ if (typeof window !== 'undefined') {
         results.replaceChildren()
         if (!rows.length) results.textContent = '没有历史会话'
         for (const row of rows) {
-          const item = button(row.title, async () => {
+          const title = label + ' · ' + row.title
+          const item = button(title, async () => {
             item.disabled = true
             try {
               await invoke('aio-history:resume', [project, provider, row.id])
@@ -38,9 +39,10 @@ if (typeof window !== 'undefined') {
           })
           const status = document.createElement('span')
           status.setAttribute('role', 'status')
-          if (Number.isFinite(row.updatedAt)) item.title = new Date(row.updatedAt).toLocaleString()
+          item.title = Number.isFinite(row.updatedAt) ? title + '\n' + new Date(row.updatedAt).toLocaleString() : title
           results.append(item, status)
         }
+        if (rows.length) load.hidden = true
       } catch (error) {
         results.textContent = error.message
       } finally { load.disabled = false }
