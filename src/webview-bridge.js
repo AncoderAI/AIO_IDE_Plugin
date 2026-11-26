@@ -39,6 +39,11 @@
     if (!detail || !Number.isSafeInteger(detail.id) || !Array.isArray(detail.candidates)) return
     vscode.postMessage({ type: 'aio:file-drop', id: detail.id, candidates: detail.candidates })
   })
+  target.addEventListener('aio:project-drop-request', (event) => {
+    const detail = event.detail
+    if (!detail || !Number.isSafeInteger(detail.id) || !Array.isArray(detail.candidates)) return
+    vscode.postMessage({ type: 'aio:project-drop', id: detail.id, candidates: detail.candidates })
+  })
   target.addEventListener('aio:file-reference-result', (event) => {
     const detail = event.detail
     if (!detail || !Number.isSafeInteger(detail.id)) return
@@ -74,6 +79,12 @@
     if (data.type === 'aio:insert-file-references' && Number.isSafeInteger(data.id) && Array.isArray(data.references)) {
       target.dispatchEvent(new target.CustomEvent('aio:insert-file-references', {
         detail: { id: data.id, references: data.references },
+      }))
+      return
+    }
+    if (data.type === 'aio:project-drop-response' && Number.isSafeInteger(data.id)) {
+      target.dispatchEvent(new target.CustomEvent('aio:project-drop-resolved', {
+        detail: { id: data.id, added: data.added, error: data.error },
       }))
       return
     }

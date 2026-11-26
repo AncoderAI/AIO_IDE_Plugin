@@ -38,10 +38,15 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
   dropTarget.description = '文件或文件夹路径'
   dropTarget.iconPath = new vscode.ThemeIcon('references')
   dropTarget.contextValue = 'aioReferenceDropTarget'
+  const projectTarget = new vscode.TreeItem('拖入文件夹以添加项目')
+  projectTarget.id = 'aio.projectImportDropTarget'
+  projectTarget.description = '不会更改 VS Code 工作区'
+  projectTarget.iconPath = new vscode.ThemeIcon('folder-library')
+  projectTarget.contextValue = 'aioProjectImportDropTarget'
 
   const provider = {
     onDidChangeTreeData: emitter.event,
-    getChildren: (parent) => parent ? [] : [...entries, ...(workbenchHost.isOpen() ? [dropTarget] : [])],
+    getChildren: (parent) => parent ? [] : [...entries, ...(workbenchHost.isOpen() ? [projectTarget, dropTarget] : [])],
     getTreeItem: (item) => item,
   }
   const insert = async (candidates) => {
@@ -51,11 +56,18 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
       return false
     }
   }
+  const addProjects = async (candidates) => {
+    try { return await workbenchHost.addProjectCandidates(candidates, true) }
+    catch (error) {
+      await vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error))
+      return 0
+    }
+  }
   const controller = {
     dropMimeTypes: MIME_TYPES,
     dragMimeTypes: [],
     async handleDrop(target, dataTransfer) {
-      if (target !== dropTarget) return
+      if (target !== dropTarget && target !== projectTarget) return
       let candidates
       try { candidates = await readDropCandidates(dataTransfer) }
       catch (error) {
@@ -63,10 +75,11 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
         return
       }
       if (!candidates.length) {
-        await vscode.window.showWarningMessage('没有可引用的文件或文件夹路径。')
+        await vscode.window.showWarningMessage(target === projectTarget ? '没有可添加的文件夹路径。' : '没有可引用的文件或文件夹路径。')
         return
       }
-      await insert(candidates)
+      if (target === projectTarget) await addProjects(candidates)
+      else await insert(candidates)
     },
   }
 
@@ -88,6 +101,19 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
         return false
       }
       return insert(candidates)
+    }),
+    vscode.commands.registerCommand('aio.importProjectInWorkbench', async (...resources) => {
+      let candidates
+      try { candidates = resourceCandidates(resources) }
+      catch (error) {
+        await vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error))
+        return 0
+      }
+      if (!candidates.length) {
+        await vscode.window.showWarningMessage('请在 Explorer 中选择要添加的文件夹。')
+        return 0
+      }
+      return addProjects(candidates)
     }),
   )
 }

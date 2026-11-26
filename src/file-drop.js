@@ -59,6 +59,8 @@
     const terminal = element.closest('.xterm')
     const terminalInput = terminal?.querySelector('textarea')
     if (terminalInput) return { kind: 'terminal', element: terminalInput }
+    const sidebar = element.closest('.sidebar')
+    if (sidebar) return { kind: 'projects', element: sidebar }
     return undefined
   }
 
@@ -103,7 +105,8 @@
   }
 
   function validFileDropRequest(message) {
-    if (!message || message.type !== 'aio:file-drop' || !Number.isSafeInteger(message.id) || !Array.isArray(message.candidates)) return false
+    if (!message || (message.type !== 'aio:file-drop' && message.type !== 'aio:project-drop')
+      || !Number.isSafeInteger(message.id) || !Array.isArray(message.candidates)) return false
     if (message.candidates.length < 1 || message.candidates.length > MAX_ITEMS) return false
     if (!message.candidates.every((candidate) => candidate && (candidate.kind === 'uri' || candidate.kind === 'path')
       && typeof candidate.value === 'string' && candidate.value.length > 0 && candidate.value.length <= 8192
@@ -155,6 +158,35 @@
     return references
   }
 
+  async function resolveDroppedDirectories(vscode, pathModule, candidates, workspaceOnly) {
+    const directories = []
+    const seen = new Set()
+    for (const candidate of candidates) {
+      let uri
+      try {
+        uri = candidate.kind === 'uri' ? vscode.Uri.parse(candidate.value, true) : uriForPath(vscode, pathModule, candidate.value)
+        if (!uri && !workspaceOnly && candidate.kind === 'path' && pathModule.isAbsolute(candidate.value)) {
+          uri = vscode.Uri.file(candidate.value)
+        }
+      } catch { continue }
+      if (!uri) continue
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri)
+      if (!workspaceFolder && (workspaceOnly || uri.scheme !== 'file')) continue
+      if (CONTROL_CHARACTERS.test(uri.toString(true)) || CONTROL_CHARACTERS.test(uri.fsPath)) {
+        throw new TypeError('Dropped path contains unsupported characters')
+      }
+      let stat
+      try { stat = await vscode.workspace.fs.stat(uri) } catch { continue }
+      const fileType = vscode.FileType || { Directory: 2 }
+      if (!(stat.type & fileType.Directory)) continue
+      const key = uri.toString(true)
+      if (seen.has(key)) continue
+      seen.add(key)
+      directories.push(uri.fsPath)
+    }
+    return directories
+  }
+
   function installFileDrop(root) {
     if (!root?.document || root.__AIO_FILE_DROP_INSTALLED__) return
     Object.defineProperty(root, '__AIO_FILE_DROP_INSTALLED__', { value: true })
@@ -188,7 +220,7 @@
       && !target.element.disabled && !target.element.closest?.('[inert]')
       && (typeof target.element.getClientRects !== 'function' || target.element.getClientRects().length > 0))
     const fallbackTarget = () => {
-      if (usableTarget(lastFocusedTarget)) return lastFocusedTarget
+      if (lastFocusedTarget?.kind !== 'projects' && usableTarget(lastFocusedTarget)) return lastFocusedTarget
       for (const selector of ['.coding-cli-composer textarea:not([disabled])', '.composer textarea:not([disabled])']) {
         for (const element of root.document.querySelectorAll(selector)) {
           const target = { kind: 'textarea', element }
@@ -199,13 +231,16 @@
     }
     root.document.addEventListener('focusin', (event) => {
       const target = dropTarget(event.target, root.document)
-      if (target) lastFocusedTarget = target
+      if (target && target.kind !== 'projects') lastFocusedTarget = target
     }, true)
     root.document.addEventListener('dragover', (event) => {
-      if (!hasSupportedDropType(event.dataTransfer) || !dropTarget(event.target, root.document)) return
+      const target = dropTarget(event.target, root.document)
+      if (!hasSupportedDropType(event.dataTransfer) || !target) return
       event.preventDefault()
       event.dataTransfer.dropEffect = 'copy'
-      showHint()
+      showHint(target.kind === 'projects'
+        ? '松开以将文件夹添加到 AIO 项目库 · 不会更改 VS Code 工作区'
+        : undefined)
     }, true)
     root.document.addEventListener('dragleave', (event) => {
       if (!event.relatedTarget) hideHint()
@@ -227,7 +262,8 @@
       }
       const id = ++sequence
       pending.set(id, target)
-      root.dispatchEvent(new root.CustomEvent('aio:file-drop-request', { detail: { id, candidates } }))
+      const requestEvent = target.kind === 'projects' ? 'aio:project-drop-request' : 'aio:file-drop-request'
+      root.dispatchEvent(new root.CustomEvent(requestEvent, { detail: { id, candidates } }))
     }, true)
     root.addEventListener('aio:file-drop-resolved', (event) => {
       const id = event.detail?.id
@@ -258,10 +294,19 @@
       if (!inserted) showHint('当前工作台没有可接收文件引用的对话框或终端输入区', 3000)
       root.dispatchEvent(new root.CustomEvent('aio:file-reference-result', { detail: { id, inserted } }))
     })
+    root.addEventListener('aio:project-drop-resolved', (event) => {
+      const id = event.detail?.id
+      const target = pending.get(id)
+      if (!target || target.kind !== 'projects') return
+      pending.delete(id)
+      if (event.detail.error) showHint(event.detail.error, 3000)
+      else if (event.detail.added > 0) showHint(`已将 ${event.detail.added} 个文件夹添加到 AIO 项目库`, 2200)
+      else showHint('没有可添加的工作区文件夹', 2600)
+    })
   }
 
   return {
     CONTROL_CHARACTERS, extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, installFileDrop,
-    resolveDroppedReferences, validFileDropRequest,
+    resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest,
   }
 })

@@ -5,6 +5,7 @@ const test = require('node:test')
 const path = require('node:path')
 const {
   extractDropCandidates, formatReference, hasSupportedDropType, insertReferences, resolveDroppedReferences, validFileDropRequest,
+  resolveDroppedDirectories,
 } = require('../src/file-drop')
 
 function transfer(values) {
@@ -73,8 +74,8 @@ test('validates bounded host requests and rejects decoded control characters', a
   assert.equal(validFileDropRequest(request), true)
   assert.equal(validFileDropRequest({ ...request, candidates: [{ kind: 'path', value: 'bad\npath' }] }), false)
 
-  function uri(raw, fsPath) {
-    return { raw, fsPath, toString: () => raw }
+  function uri(raw, fsPath, scheme = 'file') {
+    return { raw, fsPath, scheme, toString: () => raw }
   }
   const root = uri('file:///D:/repo', 'D:\\repo')
   const vscode = {
@@ -88,6 +89,7 @@ test('validates bounded host requests and rejects decoded control characters', a
         const fsPath = path.win32.join(folder.fsPath, ...parts)
         return uri('file:///' + fsPath.replaceAll('\\', '/'), fsPath)
       },
+      file(fsPath) { return uri('file:///' + fsPath.replaceAll('\\', '/'), fsPath) },
     },
     workspace: {
       workspaceFolders: [{ uri: root }],
@@ -103,4 +105,11 @@ test('validates bounded host requests and rejects decoded control characters', a
     /unsupported characters/,
   )
   assert.throws(() => formatReference('bad\x1bpath'), /unsupported characters/)
+  assert.deepEqual(await resolveDroppedDirectories(vscode, path.win32, [
+    { kind: 'path', value: 'D:\\repo\\folder' }, { kind: 'path', value: 'D:\\outside' },
+  ], true), ['D:\\repo\\folder'])
+  vscode.workspace.fs.stat = async () => ({ type: 2 })
+  assert.deepEqual(await resolveDroppedDirectories(vscode, path.win32, [
+    { kind: 'path', value: 'D:\\outside' },
+  ], false), ['D:\\outside'])
 })

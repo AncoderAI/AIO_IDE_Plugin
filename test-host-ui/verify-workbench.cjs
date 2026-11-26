@@ -63,8 +63,10 @@ async function main() {
   if (!code || !path.isAbsolute(code)) throw new Error('Set VSCODE_EXECUTABLE_PATH to the absolute path of Code.exe.');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-webview-'));
   const project = path.join(root, 'project');
+  const importedProject = path.join(root, '导入 项目');
   const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1';
   await fs.mkdir(project);
+  await fs.mkdir(importedProject);
   for (const file of ['first.txt', 'second.txt']) await fs.writeFile(path.join(project, file), file);
   let app;
   let restoreClipboard = async () => {};
@@ -87,7 +89,7 @@ async function main() {
       await fs.mkdir(user, { recursive: true });
       await fs.writeFile(path.join(user, 'settings.json'), JSON.stringify(settings));
     }
-    const env = { ...process.env };
+    const env = { ...process.env, AIO_TEST_PROJECT_IMPORT_PATH: importedProject };
     delete env.ELECTRON_RUN_AS_NODE;
     const profileArgs = ['--user-data-dir=' + path.join(root, 'profile'), '--extensions-dir=' + path.join(root, 'extensions')];
     let developmentPath = path.resolve(process.env.AIO_EXTENSION_PATH || path.join(__dirname, '..'));
@@ -135,6 +137,10 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
+          console.log(await require('./verify-project-import.cjs').verifyProjectImport(frame, project, importedProject));
+          return;
+        }
         await require('./verify-split.cjs').verifySplit(window, frame);
         if (process.env.AIO_TEST_FILE_DROP === '1') {
           console.log(await require('./verify-drop.cjs').verifyDrop(window, frame, project));

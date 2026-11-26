@@ -2,6 +2,22 @@
 const vscode = require('vscode');
 exports.run = async function () {
   await vscode.commands.executeCommand('aio.openWorkbench', vscode.workspace.workspaceFolders[0].uri);
+  if (process.env.AIO_TEST_PROJECT_IMPORT === '1') {
+    const fs = require('node:fs/promises');
+    const path = require('node:path');
+    const original = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    const imported = process.env.AIO_TEST_PROJECT_IMPORT_PATH;
+    const receipt = path.join(original, '.aio-project-import-result.json');
+    try {
+      const beforeWorkspaceFolders = (vscode.workspace.workspaceFolders || []).map(folder => folder.uri.toString(true));
+      const uri = vscode.Uri.file(imported);
+      const added = await vscode.commands.executeCommand('aio.importProjectInWorkbench', uri, [uri]);
+      const afterWorkspaceFolders = (vscode.workspace.workspaceFolders || []).map(folder => folder.uri.toString(true));
+      await fs.writeFile(receipt, JSON.stringify({ added, beforeWorkspaceFolders, afterWorkspaceFolders }));
+    } catch (error) {
+      await fs.writeFile(receipt, JSON.stringify({ added: 0, error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
   if (process.env.AIO_TEST_FILE_DROP === '1') {
     const fs = require('node:fs/promises');
     const path = require('node:path');

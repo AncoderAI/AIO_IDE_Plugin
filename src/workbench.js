@@ -6,7 +6,7 @@ const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
-const { resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
+const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
 
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024
 const MAX_RESPONSE_BYTES = 32 * 1024 * 1024
@@ -276,6 +276,26 @@ class WorkbenchHost {
     return inserted
   }
 
+  async addProjectCandidates(candidates, allowOutsideWorkspace = false) {
+    if (!this.panel || !this.service) {
+      await this.vscode.window.showWarningMessage('请先打开 AIO 完整工作台，再添加项目。')
+      return 0
+    }
+    const directories = await resolveDroppedDirectories(this.vscode, path, candidates, !allowOutsideWorkspace)
+    if (!directories.length) {
+      await this.vscode.window.showWarningMessage('请拖入有效的文件夹。工作台内只接受当前 VS Code 工作区中的目录。')
+      return 0
+    }
+    let queued = 0
+    for (const directory of directories) {
+      if (this.openFolders.includes(directory)) continue
+      this.openFolders.push(directory)
+      queued++
+    }
+    if (queued) this.postEvent('desktop-event', { event: 'app:open-folder', payload: null })
+    return queued
+  }
+
   async open(resource) {
     const folder = resource?.scheme === 'file' ? resource.fsPath : undefined
     if (folder && !this.openFolders.includes(folder)) this.openFolders.push(folder)
@@ -378,6 +398,22 @@ class WorkbenchHost {
       return
     }
     if (validFileDropRequest(message)) {
+      if (message.type === 'aio:project-drop') {
+        try {
+          const added = await this.addProjectCandidates(message.candidates, false)
+          if (this.panel === panel && this.service === service) {
+            await panel.webview.postMessage({ type: 'aio:project-drop-response', id: message.id, added })
+          }
+        } catch (error) {
+          this.log.appendLine(`AIO 项目导入失败: ${errorMessage(error)}`)
+          if (this.panel === panel && this.service === service) {
+            await panel.webview.postMessage({
+              type: 'aio:project-drop-response', id: message.id, added: 0, error: errorMessage(error),
+            })
+          }
+        }
+        return
+      }
       try {
         const references = await resolveDroppedReferences(this.vscode, path, message.candidates)
         if (this.panel === panel && this.service === service) {

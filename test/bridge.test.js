@@ -50,6 +50,25 @@ test('webview keeps terminal copy and paste shortcuts in the browser clipboard p
   assert.deepEqual(event('c', { target: { closest: () => null } }), { stopped: false, prevented: false })
 })
 
+test('webview bridge routes project-directory drops and acknowledgements', () => {
+  const target = new EventEmitter()
+  target.addEventListener = target.on.bind(target)
+  target.dispatchEvent = (event) => { target.emit(event.type, event); return true }
+  target.CustomEvent = class { constructor(type, options) { this.type = type; Object.assign(this, options) } }
+  const sent = []
+  createTauriBridge({ postMessage: (value) => sent.push(value) }, target)
+  target.emit('aio:project-drop-request', {
+    detail: { id: 21, candidates: [{ kind: 'path', value: 'D:\\project' }] },
+  })
+  assert.deepEqual(sent[0], {
+    type: 'aio:project-drop', id: 21, candidates: [{ kind: 'path', value: 'D:\\project' }],
+  })
+  let result
+  target.on('aio:project-drop-resolved', (event) => { result = event.detail })
+  target.emit('message', { data: { type: 'aio:project-drop-response', id: 21, added: 1 } })
+  assert.deepEqual(result, { id: 21, added: 1, error: undefined })
+})
+
 test('workbench service uses NDJSON request response and event routing', async () => {
   const child = new EventEmitter()
   child.stdout = new PassThrough()
