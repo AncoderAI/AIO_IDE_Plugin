@@ -234,7 +234,7 @@ test('workbench service uses NDJSON request response and event routing', async (
     resolveNodeRuntime: () => ({ executable: 'C:\\node.exe', runAsNode: false }),
     spawn: () => child,
   })
-  service.start()
+  await service.start()
   const response = service.request('projects:list', [])
   await new Promise((resolve) => setImmediate(resolve))
   const request = JSON.parse(written.trim())
@@ -265,16 +265,16 @@ test('HTML rendering installs bridge before app scripts and enforces CSP', () =>
   assert.match(output, /<script nonce="[^"]+" type="module"/)
 })
 
-test('runtime and message validation rejects unsafe inputs', () => {
+test('runtime and message validation rejects unsafe inputs', async () => {
   assert.equal(versionAtLeast('22.13.0'), true)
   assert.equal(versionAtLeast('22.12.9'), false)
   assert.deepEqual(externalNodeCandidates('win32', { PATH: 'relative;C:\\Node;"D:\\Tools"' }), ['C:\\Node\\node.exe', 'D:\\Tools\\node.exe'])
   assert.equal(validWebviewRequest({ type: 'aio:request', id: 1, command: 'desktop_request', args: {} }), true)
   assert.equal(validWebviewRequest({ type: 'aio:request', id: 1, command: 'desktop_request', args: [] }), false)
-  assert.throws(() => resolveNodeRuntime({
+  await assert.rejects(resolveNodeRuntime({
     hostVersion: '24.0.0', hostExecutable: 'code.exe', candidates: [], probeNodeRuntime: () => '',
   }), /Node\.js 22\.13/)
-  assert.deepEqual(resolveNodeRuntime({
+  assert.deepEqual(await resolveNodeRuntime({
     hostVersion: '24.0.0', hostExecutable: 'code.exe', probeNodeRuntime: () => '24.0.0',
   }), { executable: 'code.exe', runAsNode: false })
 })

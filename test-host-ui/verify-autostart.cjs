@@ -31,16 +31,15 @@ async function waitFor(predicate, description, timeout = 60000) {
   throw new Error('Timed out waiting for ' + description);
 }
 
-async function workbenchSurface(app) {
+async function workbenchSurface(app, startedAt) {
   return waitFor(async () => {
     for (const page of app.windows().filter(window => !window.isClosed()).reverse()) {
       for (const frame of page.frames()) {
         const report = await frame.evaluate(async () => {
           if (!window.__TAURI__ || !document.querySelector('#root')?.innerText.trim()) return undefined;
-          const meta = await window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] });
-          return { version: meta.version, text: document.querySelector('#root').innerText.slice(0, 120) };
+          return { text: document.querySelector('#root').innerText.slice(0, 120) };
         }).catch(() => undefined);
-        if (report) return { page, frame, report };
+        if (report) return { page, frame, report, visibleMs: Math.round(performance.now() - startedAt) };
       }
     }
   }, 'automatically opened AIO workbench');
@@ -67,12 +66,14 @@ async function launch(_electron, code, profile, extensions, workspace) {
 }
 
 async function runWindow(_electron, code, profile, extensions, workspace) {
+  const startedAt = performance.now();
   const app = await launch(_electron, code, profile, extensions, workspace);
   try {
     await app.firstWindow({ timeout: 60000 });
-    const surface = await workbenchSurface(app);
+    const surface = await workbenchSurface(app, startedAt);
     await verifySingleWorkbench(surface);
-    return surface.report.version;
+    const meta = await surface.frame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] }));
+    return { version: meta.version, visibleMs: surface.visibleMs, readyMs: Math.round(performance.now() - startedAt) };
   } finally {
     await app.close();
   }
@@ -95,9 +96,9 @@ async function main() {
     const first = await runWindow(_electron, code, profile, extensions, project);
     const restart = await runWindow(_electron, code, profile, extensions, project);
     const empty = await runWindow(_electron, code, profile, extensions, undefined);
-    assert.equal(first, restart);
-    assert.equal(restart, empty);
-    process.stdout.write(JSON.stringify({ version: first, firstLaunch: 1, restart: 1, emptyWindow: 1, duplicateTabs: 0 }) + '\n');
+    assert.equal(first.version, restart.version);
+    assert.equal(restart.version, empty.version);
+    process.stdout.write(JSON.stringify({ version: first.version, firstLaunch: first, restart, emptyWindow: empty, duplicateTabs: 0 }) + '\n');
   } finally {
     await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
   }

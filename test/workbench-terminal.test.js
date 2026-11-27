@@ -33,7 +33,7 @@ test('Windows workbench PTY accepts input, resizes and closes each provider term
       exits.add(payload.terminalId);
     }
   });
-  service.start();
+  await service.start();
   t.after(async () => {
     const exit = once(service, 'exit');
     service.stop();

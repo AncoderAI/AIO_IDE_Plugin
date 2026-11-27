@@ -44,6 +44,10 @@ test('workbench renders and handles messages before project synchronization comp
       resolve()
     }
   })
+  let releaseRuntime
+  const runtime = new Promise((resolve) => { releaseRuntime = resolve })
+  let showHtml
+  const htmlAssigned = new Promise((resolve) => { showHtml = resolve })
   const sent = []
   let receiveMessage
   let disposePanel = () => {}
@@ -57,7 +61,7 @@ test('workbench renders and handles messages before project synchronization comp
     },
     webview: {
       cspSource: 'vscode-webview:',
-      html: '',
+      set html(value) { showHtml(value) },
       asWebviewUri: String,
       onDidReceiveMessage(listener) {
         receiveMessage = listener
@@ -94,18 +98,21 @@ test('workbench renders and handles messages before project synchronization comp
       dispose: async () => {},
     },
     service: {
-      resolveNodeRuntime: () => ({ executable: 'node', runAsNode: false }),
+      resolveNodeRuntime: () => runtime,
       spawn: createServiceChild,
     },
   })
   host.createWorkbenchPanel = async () => panel
 
-  const opened = await host.open()
+  const opening = host.open()
+  const html = await htmlAssigned
+  assert.match(html, /Content-Security-Policy/)
+  assert.match(html, /webview-bridge\.js/)
+  releaseRuntime({ executable: 'node', runAsNode: false })
+  const opened = await opening
 
   assert.equal(opened, panel)
   assert.equal(projectSyncFinished, false)
-  assert.match(panel.webview.html, /Content-Security-Policy/)
-  assert.match(panel.webview.html, /webview-bridge\.js/)
   assert.equal(typeof receiveMessage, 'function')
 
   receiveMessage({

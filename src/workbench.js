@@ -1,6 +1,7 @@
 'use strict'
 
-const { spawn, spawnSync } = require('node:child_process')
+const { execFile, spawn } = require('node:child_process')
+const runFile = require('node:util').promisify(execFile)
 const { randomBytes } = require('node:crypto')
 const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
@@ -43,33 +44,36 @@ function externalNodeCandidates(platform = process.platform, environment = proce
     .map((entry) => path.join(entry, executable))
 }
 
-function probeNodeRuntime(executable, runAsNode, spawnSyncImpl = spawnSync) {
+async function probeNodeRuntime(executable, runAsNode) {
   const environment = { ...process.env }
   delete environment.NODE_OPTIONS
   delete environment.NODE_PATH
   if (runAsNode) environment.ELECTRON_RUN_AS_NODE = '1'
-  const result = spawnSyncImpl(executable, ['-e', "require('node:sqlite'); process.stdout.write(process.versions.node)"], {
-    cwd: path.parse(executable).root,
-    encoding: 'utf8',
-    env: environment,
-    timeout: 5_000,
-    windowsHide: true,
-  })
-  return result.status === 0 ? String(result.stdout).trim() : ''
+  try {
+    const { stdout } = await runFile(executable, ['-e', "require('node:sqlite'); process.stdout.write(process.versions.node)"], {
+      cwd: path.parse(executable).root,
+      encoding: 'utf8',
+      env: environment,
+      timeout: 5_000,
+      windowsHide: true,
+    })
+    return stdout.trim()
+  } catch {
+    return ''
+  }
 }
 
-function resolveNodeRuntime(options = {}) {
+async function resolveNodeRuntime(options = {}) {
   const hostVersion = options.hostVersion || process.versions.node
   const hostExecutable = options.hostExecutable || process.execPath
-  const spawnSyncImpl = options.spawnSync || spawnSync
   const probe = options.probeNodeRuntime || probeNodeRuntime
   const host = { executable: hostExecutable, runAsNode: Boolean(process.versions.electron) }
-  if (versionAtLeast(hostVersion) && versionAtLeast(probe(host.executable, host.runAsNode, spawnSyncImpl))) return host
+  if (versionAtLeast(hostVersion) && versionAtLeast(await probe(host.executable, host.runAsNode))) return host
 
   for (const candidate of options.candidates || externalNodeCandidates(options.platform, options.environment)) {
     try {
-      if (!fs.statSync(candidate).isFile()) continue
-      const version = probe(candidate, false, spawnSyncImpl)
+      if (!(await fs.promises.stat(candidate)).isFile()) continue
+      const version = await probe(candidate, false)
       if (versionAtLeast(version)) return { executable: candidate, runAsNode: false }
     } catch {}
   }
@@ -88,9 +92,10 @@ class WorkbenchService extends EventEmitter {
     this.disconnected = false
   }
 
-  start() {
-    if (this.child) return
-    const runtime = (this.options.resolveNodeRuntime || resolveNodeRuntime)()
+  async start() {
+    if (this.child || this.stopping) return
+    const runtime = await (this.options.resolveNodeRuntime || resolveNodeRuntime)()
+    if (this.child || this.stopping) return
     const environment = { ...process.env, AIO_VERSION: this.options.version }
     delete environment.NODE_OPTIONS
     delete environment.NODE_PATH
@@ -180,8 +185,8 @@ class WorkbenchService extends EventEmitter {
   }
 
   stop() {
-    if (!this.child) return
     this.stopping = true
+    if (!this.child) return
     this.lines?.close()
     this.child.stdin?.end()
     const child = this.child
@@ -229,7 +234,7 @@ class WorkbenchHost {
     this.vscode = vscode
     this.context = context
     this.history = options.history || new LazyHistory({
-      queryCodex: (filename, cwd) => queryWithNode(resolveNodeRuntime(), filename, cwd),
+      queryCodex: async (filename, cwd) => queryWithNode(await resolveNodeRuntime(), filename, cwd),
     })
     this.options = options
     this.panel = undefined
@@ -474,7 +479,7 @@ class WorkbenchHost {
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
       const ready = fs.promises.mkdir(profilePath, { recursive: true }).then(() => {
         if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
-        service.start()
+        return service.start()
       })
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => {
         void ready.then(() => this.handleMessage(message, panel, service), () => {})
@@ -483,6 +488,7 @@ class WorkbenchHost {
       const historyUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'history-view.js'))))
       panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri, historyUri)
       await ready
+      if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
       this.projectSync = Promise.resolve(this.options.projectRegistry?.syncService?.(service)).catch((error) => {
         if (this.service === service) this.log.appendLine('AIO 项目同步失败 ' + errorMessage(error))
       })

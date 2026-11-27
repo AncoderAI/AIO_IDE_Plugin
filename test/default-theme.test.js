@@ -19,7 +19,7 @@ test('new profiles start dark and saved light or system preferences survive rest
         version: 'test', resolveNodeRuntime: () => ({ executable: process.execPath, runAsNode: false }),
         spawn: (exe, args, options) => spawn(exe, [...args, '--smoke'], options),
       });
-      service.start();
+      await service.start();
       try {
         assert.equal((await service.request('settings:get', [])).theme, expected);
         if (next) await service.request('settings:update', [{ theme: next }]);
