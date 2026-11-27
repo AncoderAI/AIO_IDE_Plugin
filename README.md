@@ -10,6 +10,10 @@ For a small, well-tested change, a coding agent can often find the relevant code
 
 With AIO, you can read a function alongside its callers, check Git history to see why a constraint exists, and give the agent that context. Select the relevant functions or snippets, or reference specific files and folders. Reviewing the resulting diff helps you catch architectural drift before the next change builds on it.
 
+**Why run the interactive CLI in AIO?**
+
+Claude Code and Codex handle keystrokes in their terminal interfaces. A headless SDK or RPC client can submit tasks, but sending a prompt does not reproduce the CLI’s keyboard interactions or automatically expose every slash command. In an AIO terminal, you can use the controls supported by your installed CLI directly, including Claude Code’s `/loop` to repeat a prompt and Codex’s `/goal` to work toward a completion condition. A headless client may offer equivalent capabilities through its own API. [Claude Code scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks) · [Codex goals](https://developers.openai.com/cookbook/examples/codex/using_goals_in_codex)
+
 Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manage terminal-based coding agents, with the advantage of working directly in VS Code, Cursor, or TRAE: while Claude Code, Codex, or Oh My Pi (OMP) runs, you can read the code, inspect its Git history, and select a snippet to copy and paste or drag into the IDE’s integrated terminal input.
 
 - Use OMP, Claude Code, and Codex in one workbench. Each CLI can run in its own terminal, and an optional Bot can start worker terminals, delegate tasks, and receive progress reports.
@@ -32,6 +36,10 @@ Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manag
 对于范围明确、测试充分的小改动，编程助手往往能根据简短的任务描述找到相关代码，再用测试验证结果。在大型或高可靠性系统中，即使测试全部通过，一项改动仍可能把职责放进错误的模块。OpenClaw 作者 Peter Steinberger 在访谈中提到，他会略过常规代码，把更多注意力放在影响系统设计的决定上。[访谈原文](https://lexfridman.com/peter-steinberger-transcript/)
 
 在 AIO 中，你可以对照函数和调用方阅读代码，通过 Git 历史弄清某个约束为何存在，再把这些背景交给编程助手。除了描述任务，还可以选中相关函数或代码段，或引用具体文件和文件夹。改完后对照差异检查模块职责和依赖关系，有助于在架构偏离设计之初发现问题。
+
+**为什么在 AIO 中运行交互式 CLI？**
+
+Claude Code 和 Codex 在终端界面中处理按键。通过 SDK 或 RPC 无头调用可以提交任务，但发送提示词无法还原终端的快捷键交互，也不会自动获得每一条斜杠命令。在 AIO 终端中，你可以直接使用已安装 CLI 版本支持的原生操作，例如用 Claude Code 的 `/loop` 定期重复提示词，用 Codex 的 `/goal` 持续推进任务直到满足完成条件。无头客户端能否实现相同效果，取决于它提供的接口。[Claude Code 定时任务](https://code.claude.com/docs/en/scheduled-tasks) · [Codex 目标](https://developers.openai.com/cookbook/examples/codex/using_goals_in_codex)
 
 AIO 与 T3 Code、Orca、Paseo、Herdr、Cindy 都能编排和管理终端中的 AI 编程助手，AIO 插件的优势是可以直接在 VS Code、Cursor、TRAE 等 IDE 中管理 Claude Code、Codex 和 Oh My Pi（OMP），随时阅读代码、查看 Git 历史，还能在编辑器中选中一段代码，复制粘贴或拖到 IDE 集成终端的输入框。
 
