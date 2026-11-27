@@ -1,5 +1,5 @@
 {
-  "extension.displayName": "AIO · AI CLI Workbench",
+  "extension.displayName": "AIO · AI coding CLI · All In One",
   "extension.description": "Open installed OMP, Claude Code, and Codex in project terminals, or enter the AIO workbench.",
   "command.openTerminal": "Select an AI CLI and Open a Terminal",
   "command.openOmp": "Open OMP Terminal",

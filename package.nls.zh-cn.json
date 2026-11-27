@@ -1,5 +1,5 @@
 {
-  "extension.displayName": "AIO · AI CLI 工作台",
+  "extension.displayName": "AIO · AI coding CLI · All In One",
   "extension.description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
   "command.openTerminal": "选择 AI CLI 并打开终端",
   "command.openOmp": "打开 OMP 终端",
