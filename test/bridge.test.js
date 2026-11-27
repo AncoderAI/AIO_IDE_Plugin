@@ -371,24 +371,33 @@ test('workbench clipboard commands require the active panel and a visible termin
 })
 
 test('workbench panel gets a new locked editor group', async () => {
-  for (const [side, restored] of [['left', false], ['right', false], ['left', true]]) {
+  const cases = [
+    { side: 'left', groups: [], column: -1, actions: ['workbench.action.newGroupRight'] },
+    { side: 'right', groups: [], column: -1, actions: ['workbench.action.moveSideBarLeft', 'workbench.action.newGroupRight'] },
+    { side: 'left', groups: [{ viewColumn: 1, tabs: [] }, { viewColumn: 2, tabs: [] }, { viewColumn: 3, tabs: [] }], column: 3, actions: [] },
+    { side: 'left', groups: [{ viewColumn: 1, tabs: [{}] }, { viewColumn: 2, tabs: [{}] }], column: -1, actions: ['workbench.action.focusLastEditorGroup', 'workbench.action.newGroupRight'] },
+  ]
+  for (const scenario of cases) {
     const actions = []
     const panel = { id: 'aio-panel' }
     const previewGroupController = {
-      captureBaseline: async () => { actions.push('captureBaseline'); return restored && { orientation: 0, groups: [{}, {}] } },
+      captureBaseline: async () => {
+        actions.push('captureBaseline')
+        return scenario.groups.length > 1 ? { orientation: 0, groups: scenario.groups.map(() => ({})) } : { orientation: 0, groups: [{}] }
+      },
       close: async () => {},
       dispose: async () => {},
     }
     const vscode = {
-      workspace: { getConfiguration: () => ({ get: () => side }) },
+      workspace: { getConfiguration: () => ({ get: () => scenario.side }) },
       ViewColumn: { Active: -1 },
       Uri: { file: (value) => value },
       commands: { executeCommand: async (command) => { actions.push(command) } },
       window: {
         createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
-        tabGroups: { all: restored ? [{ viewColumn: 2, tabs: [] }] : [] },
+        tabGroups: { all: scenario.groups },
         createWebviewPanel: (_type, _title, column) => {
-          assert.equal(column, restored ? 2 : -1)
+          assert.equal(column, scenario.column)
           actions.push('createWebviewPanel')
           return panel
         },
@@ -401,13 +410,57 @@ test('workbench panel gets a new locked editor group', async () => {
     assert.equal(result, panel)
     assert.deepEqual(actions, [
       'captureBaseline',
-      ...(side === 'right' ? ['workbench.action.moveSideBarLeft'] : []),
-      ...(restored ? [] : ['workbench.action.newGroupRight']),
+      ...scenario.actions,
       'createWebviewPanel',
       'workbench.action.lockEditorGroup',
     ])
     host.dispose()
   }
+})
+
+test('workbench moves itself back to the rightmost editor group after another group is added', async () => {
+  let changed
+  const actions = []
+  const panel = { viewColumn: 2, reveal: (column) => actions.push(['reveal', column]) }
+  const groups = [{ viewColumn: 1 }, { viewColumn: 2 }, { viewColumn: 3 }]
+  const vscode = {
+    commands: {
+      executeCommand: async (command) => {
+        actions.push(command)
+        if (command === 'vscode.getEditorLayout') return { orientation: 0, groups: groups.map(() => ({})) }
+        if (command === 'workbench.action.moveActiveEditorGroupRight') panel.viewColumn++
+      },
+    },
+    window: {
+      createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
+      tabGroups: {
+        all: groups,
+        activeTabGroup: { viewColumn: 1 },
+        onDidChangeTabGroups(listener) {
+          changed = listener
+          return { dispose() {} }
+        },
+      },
+    },
+  }
+  const host = new WorkbenchHost(vscode, {})
+  host.panel = panel
+  host.watchWorkbenchPosition(panel)
+  changed()
+  await new Promise(resolve => setImmediate(resolve))
+  await new Promise(resolve => setImmediate(resolve))
+
+  assert.equal(panel.viewColumn, 3)
+  assert.deepEqual(actions, [
+    'vscode.getEditorLayout',
+    ['reveal', 2],
+    'workbench.action.moveActiveEditorGroupRight',
+    'workbench.action.focusPreviousGroup',
+    'workbench.action.focusPreviousGroup',
+    'vscode.getEditorLayout',
+  ])
+  host.panel = undefined
+  host.dispose()
 })
 
 test('workbench preview timer attaches once after the webview ready handshake', async () => {

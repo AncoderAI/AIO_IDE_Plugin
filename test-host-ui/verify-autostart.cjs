@@ -45,8 +45,14 @@ async function workbenchSurface(app, startedAt) {
   }, 'automatically opened AIO workbench');
 }
 
-async function verifySingleWorkbench(surface) {
-  assert.equal(await surface.page.locator('.part.editor .editor-group-container').count(), 2, 'Expected one preview group and one AIO group.');
+async function verifySingleWorkbench(surface, testRightCorrection = false) {
+  const editorGroups = surface.page.locator('.part.editor .editor-group-container');
+  const aioIsRightmost = () => editorGroups.evaluateAll(groups => {
+    const positions = groups.map(group => ({ x: group.getBoundingClientRect().x, aio: group.textContent.includes('AIO 工作台') }));
+    const aio = positions.find(position => position.aio);
+    return Boolean(aio && aio.x === Math.max(...positions.map(position => position.x)));
+  });
+  assert.equal(await editorGroups.count(), 2, 'Expected one preview group and one AIO group.');
   const frames = [];
   for (const frame of surface.page.frames()) {
     if (await frame.evaluate(() => Boolean(window.__TAURI__ && document.querySelector('#root'))).catch(() => false)) frames.push(frame);
@@ -54,6 +60,15 @@ async function verifySingleWorkbench(surface) {
   assert.equal(frames.length, 1, 'AIO autostart created more than one workbench Webview.');
   const tabs = surface.page.locator('.tabs-container .tab').filter({ hasText: 'AIO 工作台' });
   assert.equal(await tabs.count(), 1, 'AIO autostart created more than one editor tab.');
+  assert.equal(await aioIsRightmost(), true,
+    'AIO workbench was not in the rightmost editor group.');
+  if (testRightCorrection) {
+    await tabs.click();
+    await surface.page.keyboard.press('Control+K');
+    await surface.page.keyboard.press('Control+\\');
+    await waitFor(async () => (await editorGroups.count()) === 3 && await aioIsRightmost(),
+    'AIO to move right after creating another editor group');
+  }
   assert.ok(surface.report.text.includes('AIO') || surface.report.text.includes('项目'), 'AIO React workbench did not render.');
 }
 
@@ -66,13 +81,13 @@ async function launch(_electron, code, profile, extensions, workspace) {
   return _electron.launch({ executablePath: code, env, timeout: 60000, args });
 }
 
-async function runWindow(_electron, code, profile, extensions, workspace) {
+async function runWindow(_electron, code, profile, extensions, workspace, testRightCorrection = false) {
   const startedAt = performance.now();
   const app = await launch(_electron, code, profile, extensions, workspace);
   try {
     await app.firstWindow({ timeout: 60000 });
     const surface = await workbenchSurface(app, startedAt);
-    await verifySingleWorkbench(surface);
+    await verifySingleWorkbench(surface, testRightCorrection);
     const meta = await surface.frame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] }));
     return { version: meta.version, visibleMs: surface.visibleMs, readyMs: Math.round(performance.now() - startedAt) };
   } finally {
@@ -96,7 +111,7 @@ async function main() {
   try {
     const first = await runWindow(_electron, code, profile, extensions, project);
     const restart = await runWindow(_electron, code, profile, extensions, project);
-    const empty = await runWindow(_electron, code, profile, extensions, undefined);
+    const empty = await runWindow(_electron, code, profile, extensions, undefined, true);
     assert.equal(first.version, restart.version);
     assert.equal(restart.version, empty.version);
     process.stdout.write(JSON.stringify({ version: first.version, firstLaunch: first, restart, emptyWindow: empty, duplicateTabs: 0 }) + '\n');

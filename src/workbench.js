@@ -415,17 +415,18 @@ class WorkbenchHost {
   }
 
   async createWorkbenchPanel(uiRoot) {
-    // Keep AIO in its own editor group. Locking this newly-created empty group
-    // makes Explorer open files in another group even after the user clicks AIO.
     const layout = await this.previewGroup.captureBaseline()
     const explorerOnRight = this.vscode.workspace.getConfiguration('workbench.sideBar').get('location') === 'right'
     if (explorerOnRight) await this.vscode.commands.executeCommand('workbench.action.moveSideBarLeft')
     const groups = this.vscode.window.tabGroups?.all || []
-    const emptyGroup = groups.find(group => group.viewColumn > 1 && group.tabs.length === 0)
-    const horizontal = layout?.orientation === 0 && layout.groups?.every(group => !Array.isArray(group.groups))
-    const reuse = horizontal && emptyGroup
-    if (!reuse) await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
-    const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', reuse ? emptyGroup.viewColumn : this.vscode.ViewColumn.Active, {
+    await this.ensureHorizontalGroups(layout, groups)
+    const last = groups.reduce((right, group) => !right || group.viewColumn > right.viewColumn ? group : right, undefined)
+    const reuse = last?.viewColumn > 1 && !last.tabs.length
+    if (!reuse) {
+      if (groups.length > 1) await this.vscode.commands.executeCommand('workbench.action.focusLastEditorGroup')
+      await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
+    }
+    const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', reuse ? last.viewColumn : this.vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
       enableCommandUris: false,
@@ -439,6 +440,53 @@ class WorkbenchHost {
       await this.previewGroup.close()
       throw error
     }
+  }
+
+  async ensureHorizontalGroups(layout, groups) {
+    if (groups.length < 2 || !layout || (layout.orientation === 0 && layout.groups.every(group => !group.groups))) return
+    await this.vscode.commands.executeCommand('vscode.setEditorLayout', {
+      orientation: 0, groups: groups.map(() => ({})),
+    })
+  }
+
+  watchWorkbenchPosition(panel) {
+    const tabs = this.vscode.window.tabGroups
+    if (!tabs?.onDidChangeTabGroups) return
+    let queue = Promise.resolve()
+    const correct = async () => {
+      if (this.panel !== panel || !panel.viewColumn) return
+      const groups = tabs.all
+      const count = groups.length
+      if (count < 2) return
+      const layout = await this.vscode.commands.executeCommand('vscode.getEditorLayout')
+      if (this.panel !== panel) return
+      await this.ensureHorizontalGroups(layout, groups)
+      const column = panel.viewColumn
+      if (!column || column >= count || this.panel !== panel) return
+      const focused = tabs.activeTabGroup.viewColumn
+      panel.reveal(column)
+      for (let step = column; step < count && this.panel === panel; step++) {
+        await this.vscode.commands.executeCommand('workbench.action.moveActiveEditorGroupRight')
+      }
+      if (focused !== column && this.panel === panel) {
+        const target = focused > column ? focused - 1 : focused
+        for (let step = count; step > target; step--) {
+          await this.vscode.commands.executeCommand('workbench.action.focusPreviousGroup')
+        }
+      }
+    }
+    const schedule = () => {
+      queue = queue.then(correct).catch(error => this.log.appendLine(errorMessage(error)))
+    }
+    this.disposables.push(tabs.onDidChangeTabGroups(schedule))
+    let lastColumn = panel.viewColumn
+    const listener = panel.onDidChangeViewState?.(() => {
+      if (lastColumn === panel.viewColumn) return
+      lastColumn = panel.viewColumn
+      schedule()
+    })
+    if (listener) this.disposables.push(listener)
+    schedule()
   }
 
   async createPanel() {
@@ -455,6 +503,7 @@ class WorkbenchHost {
     let service
     try {
       this.panel = panel
+      this.watchWorkbenchPosition(panel)
       const panelDisposable = panel.onDidDispose(() => this.close(panel))
       this.disposables.push(panelDisposable)
       const profilePath = path.join(storageUri.fsPath, 'workbench')
