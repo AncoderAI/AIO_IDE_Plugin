@@ -1,6 +1,6 @@
 # AIO for VS Code
 
-[English](#features) · [简体中文](#功能说明)
+[English](#features) · [简体中文](#功能说明) · [GitHub repository / 项目仓库](https://github.com/AncoderAI/AIO_IDE_Plugin.git)
 
 ## Features
 
