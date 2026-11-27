@@ -84,9 +84,7 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
     },
   }
 
-  for (const view of ['aio.launchers', 'aio.sidebarLaunchers']) {
-    context.subscriptions.push(vscode.window.createTreeView(view, { treeDataProvider: provider, dragAndDropController: controller }))
-  }
+  context.subscriptions.push(vscode.window.createTreeView('aio.launchers', { treeDataProvider: provider, dragAndDropController: controller }))
   context.subscriptions.push(
     emitter,
     workbenchHost.onDidChangePanel(() => emitter.fire(undefined)),

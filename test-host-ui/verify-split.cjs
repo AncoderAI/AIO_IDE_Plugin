@@ -4,7 +4,9 @@ const assert = require('node:assert/strict');
 
 exports.verifySplit = async function (window, frame) {
   const activity = window.locator('.activitybar');
-  await activity.getByRole('tab', { name: /^(Explorer|资源管理器)\b/i }).click();
+  if (!(await window.locator('.explorer-folders-view').isVisible())) {
+    await activity.getByRole('tab', { name: /^(Explorer|资源管理器)\b/i }).click();
+  }
   const explorer = window.locator('.part.sidebar');
   for (const file of ['first.txt', 'second.txt']) {
     // Focus the actual Webview first so a split that only works while the file

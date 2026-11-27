@@ -59,7 +59,6 @@ async function verifyNativeDrop(window, project) {
   const directory = path.join(project, 'drop-folder');
   await fs.mkdir(directory, { recursive: true });
   const activity = window.locator('.activitybar');
-  const aioTab = activity.getByRole('tab', { name: /^AIO\b/i });
   const explorerTab = activity.getByRole('tab', { name: /^(Explorer|资源管理器)\b/i });
   const cases = [
     { label: 'first.txt', expected: path.join(project, 'first.txt') },
@@ -67,12 +66,14 @@ async function verifyNativeDrop(window, project) {
   ];
 
   for (const item of cases) {
-    const aioSidebar = window.locator('.part.sidebar');
-    if (!(await aioSidebar.getByText('OMP', { exact: true }).isVisible().catch(() => false))) await aioTab.click();
-    await aioSidebar.getByText('OMP', { exact: true }).click();
+    await window.keyboard.press('Control+Shift+P');
+    const commandInput = window.locator('.quick-input-widget input[role=combobox]');
+    await commandInput.fill('>AIO: Open OMP Terminal');
+    const command = window.getByRole('option', { name: /AIO: Open OMP Terminal/i });
+    await command.first().click();
     await window.waitForFunction(() => Boolean(document.activeElement?.closest('.xterm')));
 
-    await explorerTab.click();
+    if (!(await window.locator('.explorer-folders-view').isVisible())) await explorerTab.click();
     const explorer = window.locator('.part.sidebar');
     const source = explorer.getByText(item.label, { exact: true }).first();
     await source.waitFor({ state: 'visible' });
@@ -80,7 +81,7 @@ async function verifyNativeDrop(window, project) {
     await verifyOneDrop(window, project, source, item.expected);
   }
 
-  await aioTab.click();
+  await activity.getByRole('tab', { name: /^AIO\b/i }).click();
   return { filePath: true, directoryPath: true, submittedByDrop: false, clipboardUsed: false };
 }
 

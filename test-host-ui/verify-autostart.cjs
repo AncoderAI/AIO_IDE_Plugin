@@ -108,6 +108,16 @@ async function runWindow(_electron, code, profile, extensions, workspace, testRi
       await chooseLanguage(surface.frame, language, language === 'en' ? 'zh-CN' : 'en');
     }
     const meta = await surface.frame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] }));
+    if (testRightCorrection) {
+      const tabs = surface.page.locator('.tabs-container .tab').filter({ hasText: /AIO (工作台|Workbench)/i });
+      await tabs.click({ button: 'middle' });
+      await tabs.waitFor({ state: 'detached' });
+      await surface.page.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i }).click();
+      await workbenchSurface(app, startedAt);
+      assert.equal(await tabs.count(), 1, 'Activity icon must open one full workbench.');
+      await surface.page.locator('.part.sidebar .explorer-viewlet').waitFor({ state: 'visible' });
+      assert.equal(await surface.page.locator('.part.sidebar').getByText(/^(Coding Agents|编程智能体)$/).count(), 0);
+    }
     return { version: meta.version, visibleMs: surface.visibleMs, readyMs: Math.round(performance.now() - startedAt) };
   } finally {
     await app.close();

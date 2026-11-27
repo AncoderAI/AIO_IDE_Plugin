@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -65,7 +65,7 @@
       "activitybar": [{ "id": "aio", "title": "AIO", "icon": "media/activity.svg" }]
     },
     "views": {
-      "aio": [{ "id": "aio.sidebarLaunchers", "name": "%view.codingAgents%", "when": "isWorkspaceTrusted" }],
+      "aio": [{ "id": "aio.sidebarLaunchers", "name": "AIO", "when": "isWorkspaceTrusted" }],
       "explorer": [{ "id": "aio.launchers", "name": "AIO", "when": "isWorkspaceTrusted" }]
     },
     "configuration": {

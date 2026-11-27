@@ -58,7 +58,7 @@ test('registers a native drop target while workbench is open and routes both ent
   }
   const entry = new TreeItem('OMP')
   registerFileReferenceTree(vscode, { subscriptions: [] }, host, [entry])
-  assert.equal(views.length, 2)
+  assert.deepEqual(views.map(view => view.id), ['aio.launchers'])
   assert.deepEqual(views[0].options.treeDataProvider.getChildren(), [entry])
   open = true
   panelListener(true)

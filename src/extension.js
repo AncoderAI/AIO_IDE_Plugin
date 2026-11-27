@@ -30,9 +30,24 @@ async function activate(context) {
     return item;
   });
   registerFileReferenceTree(vscode, context, workbenchHost, entries);
+  const activityView = vscode.window.createTreeView('aio.sidebarLaunchers', {
+    treeDataProvider: { getChildren: () => [], getTreeItem: (item) => item },
+  });
+  const openFromActivityBar = async () => {
+    if (!activityView.visible || !vscode.workspace.isTrusted) return;
+    try {
+      await vscode.commands.executeCommand('workbench.view.explorer');
+      await workbenchHost.open();
+    } catch (error) {
+      await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+  context.subscriptions.push(activityView, activityView.onDidChangeVisibility(openFromActivityBar));
+
   try {
     const resumed = await resumeProjectHandoff(vscode, context, workbenchHost, path);
     if (!resumed && vscode.workspace.isTrusted) await workbenchHost.open();
+    await openFromActivityBar();
   }
   catch (error) { await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error)); }
 }

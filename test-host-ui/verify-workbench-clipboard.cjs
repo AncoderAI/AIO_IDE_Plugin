@@ -37,13 +37,7 @@ async function reopenWorkbench(window, oldFrame) {
   await waitFor(() => !window.frames().includes(oldFrame), 'The original AIO workbench did not close.');
   // The service persists plugin state during its graceful stdin shutdown.
   await new Promise(resolve => setTimeout(resolve, 1000));
-  const activity = window.locator('.activitybar');
-  const sidebar = window.locator('.part.sidebar');
-  const workbenchEntry = sidebar.getByText(/^(完整工作台|Full Workbench)$/).first();
-  if (!(await workbenchEntry.isVisible().catch(() => false))) {
-    await activity.getByRole('tab', { name: /^AIO\b/i }).click();
-  }
-  await workbenchEntry.click();
+  await window.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i }).click();
   return aioFrame(window);
 }
 

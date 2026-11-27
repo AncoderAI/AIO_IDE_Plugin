@@ -130,13 +130,7 @@ async function main() {
     const window = await app.firstWindow();
     if (process.env.AIO_TEST_PREVIEW_GROUP === '1') await fs.writeFile(path.join(project, '.aio-open-preview-now'), '');
     const aioTab = window.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i });
-    const sidebar = window.locator('.part.sidebar');
-    if (process.env.AIO_TEST_PREVIEW_GROUP !== '1') {
-      await aioTab.click();
-      for (const label of ['OMP', 'Claude Code', 'Codex', /^(完整工作台|Full Workbench)$/]) {
-        await sidebar.getByText(label, { exact: typeof label === 'string' }).waitFor({ state: 'visible' });
-      }
-    }
+    if (process.env.AIO_TEST_PREVIEW_GROUP !== '1') await aioTab.click();
     const errors = [];
     window.on('pageerror', (error) => errors.push(error.message));
     window.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text().slice(0, 300)); });
