@@ -1,65 +1,33 @@
 # AIO for VS Code
 
-在受信任的工作区中，点击 VS Code 左侧活动栏的 **AIO** 终端图标，然后选择 **OMP**、**Claude Code** 或 **Codex**，即可在项目目录中启动对应的本机 CLI。资源管理器中的 **AIO** 分组也提供相同入口。每次点击都会创建一个独立的集成终端。收起终端面板可继续运行任务，点击对应终端的垃圾桶图标可结束它。
+[English](#features) · [简体中文](#功能说明)
 
-也可以右键项目里的目录，选择 **AIO: 选择 AI CLI 并打开终端**。使用命令面板启动时，扩展优先使用当前编辑文件所属的工作区。在多根工作区中可选择项目，空窗口会提示选择目录。
+## Features
 
-### 终端输入与剪贴板
+- Use OMP, Claude Code, and Codex in one workbench. Each CLI can run in its own terminal, and an optional Bot can start worker terminals, delegate tasks, and receive progress reports.
+- Open the workbench from the VS Code Activity Bar. It opens automatically in trusted windows, stays on the right, and expands to fill the editor area when the file preview is hidden.
+- Manage multiple projects and switch the current VS Code folder from the project list. Browse CLI history on demand by project, with each loaded session labeled by its first prompt.
+- Choose English, Simplified Chinese, or the system language. The workbench uses a dark theme by default.
 
-从 AIO 打开 CLI 后可直接打字。要复制输出，用鼠标拖选文字，然后点击终端面板标题栏的 **复制终端选区**。要粘贴，在其他应用复制文字后点击 **粘贴到终端**，或在 Windows 终端输入区按 `Ctrl+V`。AIO 使用 VS Code 的原生粘贴操作，保留多行粘贴提示。
+## How to use
 
-在完整工作台的内嵌终端中，鼠标选中文字后按 **Ctrl+C** 复制。单击鼠标右键或按 **Ctrl+V** 可直接粘贴系统剪贴板文本；Shift+右键保留菜单。没有选区时，Ctrl+C 继续用作 CLI 的中断键。
+1. Install [the VSIX](dist/aio-ide.vsix) using **Extensions → Install from VSIX…**, or run `code --install-extension dist/aio-ide.vsix`. Install and sign in to the CLIs you want to use. The bundled terminal is built for Windows x64 and requires Node.js 22.13+ with `node:sqlite`. Set `aio.ompPath`, `aio.claudePath`, or `aio.codexPath` if detection fails.
+2. Click the **AIO** Activity Bar icon to open the full workbench. Use the CLI picker to open a terminal, or the **Bot** picker to send prompts to an OMP, Claude Code, or Codex Bot. Standalone CLI terminals are also available from the Command Palette.
+3. Hover over **File preview** to show the file area on the left. Move into it to view or edit a file, then move out to give the space back to AIO. Drag Explorer files or folders into the composer or terminal to insert their paths. You can also use **Explorer → AIO** or the Explorer context menu.
+4. Drop a folder onto the project list to add it. Click its name to switch the current VS Code folder, or click a CLI name under the project to load its history. Click a session to resume it.
+5. In a workbench terminal, use `Ctrl+C` to copy selected text and `Ctrl+V` or right-click to paste. Change the language under **Settings → Appearance → Interface language**. VS Code menus follow the VS Code display language.
 
-CLI 终端打开时，点击 AIO 的普通工作区后即可直接输入文字、斜杠或使用方向键、Esc、Shift+Tab。点击底部对话框即可编辑草稿；点击工作台以外的文件编辑器或 Explorer 后，键盘由 VS Code 对应区域接收。
+## 功能说明
 
-### CLI 路径
+- 在同一个工作台使用 OMP、Claude Code 和 Codex。各 CLI 可在独立终端运行，也可选用 Bot 创建工作终端、分派任务并接收进度反馈。
+- 通过 VS Code 活动栏进入工作台。受信任窗口启动时会自动打开 AIO。工作台位于最右侧，文件预览收起后占满编辑区。
+- 管理多个项目，并从项目列表切换 VS Code 当前文件夹。按项目和 CLI 加载历史会话，已加载会话以首条输入作为标签。
+- 界面支持英语、简体中文和跟随系统。工作台默认使用深色主题。
 
-安装并登录需要使用的 CLI 后，运行 **AIO: 检测本机 CLI** 查看发现的路径。如果 VS Code 没有继承最新的 PATH，可以在用户设置中填写 `aio.ompPath`、`aio.claudePath` 或 `aio.codexPath`，值为可执行文件的绝对路径。在 Remote 窗口中，CLI 和项目需要位于运行扩展的远程主机。
+## 操作说明
 
-### 安装与开发
-
-在扩展视图的更多操作菜单中选择 **从 VSIX 安装…**，或者运行 `code --install-extension dist/aio-ide.vsix`。开发时可用 `code --extensionDevelopmentPath=. .` 打开独立的扩展开发窗口。使用 Node.js 运行 `npm test`，安装 VS Code 打包工具 `@vscode/vsce` 后运行 `npm run package` 生成 VSIX。
-
-### 完整工作台
-
-在底部的 Bot 选择器中可选择无 Bot、OMP、Claude Code 或 Codex。选择一个 Bot 后，工作台打开带 `_Bot` 标签的终端。此后的底部对话输入会送到该 Bot，你也可以在 Bot 终端中直接输入。切换查看其他终端时，底部输入仍送给已选的 Bot。
-
-Bot 可用随包脚本创建工作终端、发送任务、关闭终端与查看事件。工作 CLI 可以通过同一个脚本或自己的 hook 上报进度、阻塞和完成。一次任务完成与终端退出是两种事件。关闭 Bot 会结束它创建的工作终端。
-
-Bot 可向已运行的 Windows Codex 工作终端发送多行后续任务，继续使用原会话。如果终端里已有未发送的草稿，自动投递会暂停并提示。新终端的首任务仍可使用 `create codex --stdin`。
-
-在 AIO 工作台的「设置 → 外观 → 界面语言」中可选择简体中文、English 或跟随系统。选择立即生效，并随工作台设置保存。VS Code 原生命令和菜单使用 VS Code 的显示语言。
-
-安装扩展后，打开受信任的 VS Code 窗口即可看到 AIO 工作台。没有文件夹的普通空窗口也支持。项目切换后复用恢复流程，每个窗口只创建一个工作台。
-
-新工作台默认使用深色主题。可以在工作台设置中选择浅色或跟随系统，选择会保存在当前工作区。
-
-工作台的项目栏在打开后的前 4 秒保持可见。之后，悬停或点击项目名前的左栏按钮可展开项目栏，悬停或点击标题栏右侧的检查器按钮可展开右栏。普通边缘、终端和聊天输入区不会触发展开。移出按钮和侧栏后，未固定的侧栏会收起。
-
-从项目栏打开子页面后，左栏保持可见，页面占满标题栏下方的整个右侧内容区。点击页面右上角 **×** 返回上一页；回到会话后，左栏恢复自动显隐，原 CLI 终端重新显示。
-
-左栏展开时，终端与底部输入框一起让出左栏宽度；收起后恢复可用宽度。标题栏按钮的位置保持稳定。
-
-工作台在独立的编辑器分组中打开。点击工作台后，再从 Explorer 打开文件时，文件会显示在另一个分组，工作台仍然可见。
-
-启动时 AIO 使用编辑区的可用宽度。鼠标悬停在工作台左上角「文件预览」按钮上时，左侧预览展开；移入预览可继续查看文件，离开后 AIO 重新占用该空间。文件和未保存的编辑都会保留。
-
-要引用 Explorer 中的文件或文件夹，可将选中项拖到 Explorer 的 **AIO → 拖到此处引用到工作台**，也可右键选择 **在 AIO 对话中引用路径**。工作台打开时才显示拖入节点。路径会插入最近使用且仍可见的工作台对话框或 CLI 输入区，不会自动发送，也不会读取文件正文。
-
-也可以直接拖到工作台输入区。先开始拖动，再按住 **Shift**，让 VS Code 将拖放交给 Webview。部分 Windows 版 VS Code 存在 Webview 拖放回归，遇到无响应时使用上面的 AIO 拖入节点或右键入口。
-
-对于 VS Code 集成终端，直接拖到终端即可。
-
-点击 VS Code 活动栏里的 **AIO** 图标，或在资源管理器右键本地项目目录，选择 **AIO: 打开完整工作台**。第一次使用时，在工作台的「插件」页启用需要的编程智能体，再添加项目。这里的插件状态独立于资源管理器中的三个终端快捷入口。
-
-要把目录加入 AIO 项目库，可拖到工作台左侧项目列表，拖到 Explorer 的 **AIO → 拖入文件夹以添加项目**，或右键文件夹选择 **在 AIO 中添加项目**。导入只更新 AIO 的列表，可连续添加多个目录。当前 VS Code 文件夹和多根工作区保持原样。
-
-单击 AIO 左侧列表中的项目名称，VS Code 会在当前窗口打开该项目文件夹。窗口切换后重新显示工作台，已导入的项目仍可用于切换。未保存的修改由 VS Code 按正常打开文件夹流程处理。
-
-从 VS Code 直接打开新项目，或在多根工作区新增文件夹时，扩展会把此前未登记的根目录加入 AIO 项目列表。相同目录只登记一次。项目目录清单与会话数据分开存储。
-
-工作台随扩展提供 AIO 2.0.1 的 React 界面和后台服务，可使用项目库、项目会话、模型目录、Claude/Codex 流式对话、三种智能体的后台任务、终端抽屉及基础 Git 操作。工作台数据保存在 VS Code 的扩展存储目录中。关闭整个工作台标签会关闭其服务；收起工作台里的终端抽屉可让终端继续运行。
-
-本版按 **Windows x64** 打包工作台内嵌终端。工作台需要支持 `node:sqlite` 的 Node.js 22.13 或更高版本；若 VS Code 自带的版本不满足条件，会从 PATH 查找。资源管理器的三个 CLI 入口直接使用 VS Code 集成终端。浏览器操作、定时长任务、技能执行和桌面更新器仍属于上游 Tauri 的迁移范围。
-
-重新构建工作台时，将 `AIO_SOURCE` 指向已安装开发依赖的 AIO 仓库，运行 `npm run build:workbench`。Windows 构建还需要 Rust/Cargo 和 MSVC。普通安装使用 VSIX 中的预构建资源。
+1. 在 **扩展 → 从 VSIX 安装…** 中选择[安装包](dist/aio-ide.vsix)，或运行 `code --install-extension dist/aio-ide.vsix`。安装并登录要使用的 CLI。随包内嵌终端面向 Windows x64，需要支持 `node:sqlite` 的 Node.js 22.13 或更高版本。检测失败时，可设置 `aio.ompPath`、`aio.claudePath` 或 `aio.codexPath`。
+2. 点击活动栏的 **AIO** 图标进入完整工作台。通过 CLI 选择器打开终端，或通过 **Bot** 选择器将底部输入发给 OMP、Claude Code 或 Codex Bot。也可从命令面板打开独立的 CLI 终端。
+3. 悬停 **文件预览** 按钮展开左侧文件区。移入后可查看或编辑，移出后 AIO 收回空间。将资源管理器中的文件或文件夹拖入对话框或终端即可插入路径。也可使用 **资源管理器 → AIO** 或资源管理器右键菜单。
+4. 将文件夹拖到项目列表即可添加。点击项目名切换当前 VS Code 文件夹，点击项目下的 CLI 名称加载历史，点击会话继续。
+5. 在工作台终端中，按 `Ctrl+C` 复制选区，按 `Ctrl+V` 或单击右键粘贴。在 **设置 → 外观 → 界面语言** 中切换语言。VS Code 菜单跟随 VS Code 的显示语言。
