@@ -813,6 +813,19 @@ function setDefaultTheme(uiOnly = false) {
     [join(uiOutput, 'index.html'), /<html lang="en"(?: data-theme="[^"]*")?>/, '<html lang="en" data-theme="dark">'],
     [join(assets, main), /theme:"(?:dark|system|light)",locale:"zh-CN"/, 'theme:"dark",locale:"zh-CN"'],
   ]
+  const labels = [
+    ['Launch at login', 'Open AIO Workbench when VS Code starts'],
+    ['Start the app in the background when you sign in to this computer.', 'Automatically open the workbench in trusted VS Code windows.'],
+    ['登录时启动', '启动 VS Code 时打开 AIO 工作台'],
+    ['登录此电脑时在后台启动应用。', '在受信任的 VS Code 窗口中自动打开工作台。'],
+  ]
+  const mainPath = join(assets, main)
+  let renderer = readFileSync(mainPath, 'utf8')
+  for (const [desktop, extension] of labels) {
+    if (!renderer.includes(extension) && !renderer.includes(desktop)) throw new Error('Missing startup label: ' + desktop)
+    renderer = renderer.replace(desktop, extension)
+  }
+  writeFileSync(mainPath, renderer)
   if (!uiOnly) files.push([
     join(serviceOutput, 'workbench-service.cjs'), /theme: "(?:system|dark|light)",(\s+locale: "zh-CN")/, 'theme: "dark",$1',
   ])

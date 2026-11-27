@@ -508,3 +508,33 @@ test('workbench preview timer attaches once after the webview ready handshake', 
   host.service = undefined
   host.dispose()
 })
+test('workbench startup switch reads VS Code settings and respects a workspace override', async () => {
+  let workspacePreference
+  let globalPreference = true
+  const config = {
+    get: () => workspacePreference ?? globalPreference,
+    inspect: () => ({ workspaceValue: workspacePreference }),
+    update: async (_key, value, target) => {
+      if (target === 1) globalPreference = value
+      else workspacePreference = value
+    },
+  }
+  const host = new WorkbenchHost({
+    workspace: { getConfiguration: () => config },
+    ConfigurationTarget: { Global: 1, Workspace: 2 },
+    window: { createOutputChannel: () => ({ dispose() {} }) },
+  }, {})
+  const service = { request: async (channel, args) => {
+    if (channel === 'settings:update') assert.deepEqual(args, [{ theme: 'dark' }])
+    return { launchAtLogin: false, theme: 'dark' }
+  } }
+  const request = (channel, ...args) => host.desktopRequest({ channel, args }, service)
+  assert.equal((await request('settings:get')).launchAtLogin, true)
+  assert.equal((await request('settings:update', { launchAtLogin: false })).launchAtLogin, false)
+  assert.equal(globalPreference, false)
+  workspacePreference = false
+  assert.equal((await request('settings:update', { launchAtLogin: true, theme: 'dark' })).launchAtLogin, true)
+  assert.equal(globalPreference, false)
+  assert.equal(workspacePreference, true)
+  host.dispose()
+})

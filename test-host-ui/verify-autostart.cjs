@@ -96,7 +96,25 @@ async function chooseLanguage(frame, current, next) {
   }, next), 'saved language');
 }
 
-async function runWindow(_electron, code, profile, extensions, workspace, testRightCorrection = false, language) {
+async function setWorkbenchAutostart(frame, language, enabled) {
+  const chinese = language === 'zh-CN';
+  await frame.locator('.aio-panel-toggle-left').hover();
+  await frame.locator('.sidebar').getByText(chinese ? '设置' : 'Settings', { exact: true }).last().click();
+  await frame.locator('.settings-nav').getByText(chinese ? '常规' : 'General', { exact: true }).click();
+  const label = chinese ? '启动 VS Code 时打开 AIO 工作台' : 'Open AIO Workbench when VS Code starts';
+  const toggle = frame.locator('.settings-toggle').filter({ hasText: label });
+  const input = toggle.locator('input[type="checkbox"]');
+  await input.waitFor();
+  assert.equal(await input.isChecked(), !enabled, 'Unexpected initial workbench startup setting.');
+  await toggle.click();
+  await waitFor(() => input.isChecked().then(value => value === enabled), 'workbench startup toggle');
+  await waitFor(() => frame.evaluate(async value => {
+    const settings = await window.__TAURI__.core.invoke('desktop_request', { channel: 'settings:get', args: [] });
+    return settings.launchAtLogin === value;
+  }, enabled), 'saved workbench startup setting');
+}
+
+async function runWindow(_electron, code, profile, extensions, workspace, testRightCorrection = false, language, startupSetting) {
   const startedAt = performance.now();
   const app = await launch(_electron, code, profile, extensions, workspace);
   try {
@@ -106,6 +124,10 @@ async function runWindow(_electron, code, profile, extensions, workspace, testRi
     if (language) {
       await surface.frame.waitForFunction(locale => document.documentElement.lang === locale, language);
       await chooseLanguage(surface.frame, language, language === 'en' ? 'zh-CN' : 'en');
+    }
+    if (startupSetting !== undefined) {
+      const currentLanguage = language === 'en' ? 'zh-CN' : 'en';
+      await setWorkbenchAutostart(surface.frame, currentLanguage, startupSetting);
     }
     const meta = await surface.frame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] }));
     if (testRightCorrection) {
@@ -139,11 +161,7 @@ async function main() {
   await installVsix(code, vsix, [`--user-data-dir=${profile}`, `--extensions-dir=${extensions}`]);
   try {
     const first = await runWindow(_electron, code, profile, extensions, project, false, 'zh-CN');
-    const restart = await runWindow(_electron, code, profile, extensions, project, false, 'en');
-    const empty = await runWindow(_electron, code, profile, extensions, undefined, true);
-    await fs.writeFile(path.join(profile, 'User', 'settings.json'), JSON.stringify({
-      'window.restoreWindows': 'none', 'aio.openWorkbenchOnStartup': false,
-    }));
+    const restart = await runWindow(_electron, code, profile, extensions, project, false, 'en', false);
     const app = await launch(_electron, code, profile, extensions, project);
     try {
       const page = await app.firstWindow();
@@ -153,9 +171,11 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 5000));
       assert.equal(await tabs.count(), 0, 'Disabled autostart still opened AIO');
       await icon.click();
-      await workbenchSurface(app, performance.now());
+      const surface = await workbenchSurface(app, performance.now());
       assert.equal(await tabs.count(), 1, 'Manual open must still work');
+      await setWorkbenchAutostart(surface.frame, 'zh-CN', true);
     } finally { await app.close(); }
+    const empty = await runWindow(_electron, code, profile, extensions, undefined, true);
     assert.equal(first.version, restart.version);
     assert.equal(restart.version, empty.version);
     process.stdout.write(JSON.stringify({ version: first.version, firstLaunch: first, restart, emptyWindow: empty, duplicateTabs: 0 }) + '\n');

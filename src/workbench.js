@@ -705,6 +705,25 @@ class WorkbenchHost {
     if (typeof input.channel !== 'string' || input.channel.length < 1 || input.channel.length > 128) throw new TypeError('Invalid desktop channel')
     if (!Array.isArray(input.args) || input.args.length > 16) throw new TypeError('Invalid desktop arguments')
     let { channel, args } = input
+    if (['settings:get', 'settings:update', 'app:refresh-harnesses'].includes(channel)) {
+      const config = this.vscode.workspace.getConfiguration('aio')
+      // The desktop renderer calls this field launchAtLogin. In the extension,
+      // the VS Code startup preference owns it, including workspace overrides.
+      if (channel === 'settings:update' && Object.hasOwn(args[0] || {}, 'launchAtLogin')) {
+        const { launchAtLogin, ...otherSettings } = args[0]
+        if (typeof launchAtLogin !== 'boolean') throw new TypeError('Expected a boolean startup preference')
+        const key = 'openWorkbenchOnStartup'
+        const target = config.inspect(key)?.workspaceValue === undefined
+          ? this.vscode.ConfigurationTarget.Global : this.vscode.ConfigurationTarget.Workspace
+        await config.update(key, launchAtLogin, target)
+        args = Object.keys(otherSettings).length ? [otherSettings] : []
+        if (!args.length) channel = 'settings:get'
+      }
+      const result = await service.request(channel, args)
+      const launchAtLogin = this.vscode.workspace.getConfiguration('aio').get('openWorkbenchOnStartup', true)
+      if (channel === 'app:refresh-harnesses') return { ...result, settings: { ...result.settings, launchAtLogin } }
+      return { ...result, launchAtLogin }
+    }
     // The desktop renderer requests these catalogs during bootstrap and navigation.
     // This host exposes the history catalog through the explicit per-provider actions.
     if (['sessions:list', 'terminal:list-restorable', 'coding:list', 'coding:list-summaries', 'app:list-coding-cli-history'].includes(channel)) {
