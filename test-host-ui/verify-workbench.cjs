@@ -96,7 +96,7 @@ async function main() {
     delete env.ELECTRON_RUN_AS_NODE;
     if (process.env.AIO_TEST_CODEX_SUBMISSION_EXE) {
       codexFixture = await require('./verify-codex-submission.cjs').createCodexFixture(
-        path.join(root, 'codex-submission'), project, process.env.AIO_TEST_CODEX_SUBMISSION_EXE, env);
+        path.join(root, 'c'), project, process.env.AIO_TEST_CODEX_SUBMISSION_EXE, env);
     }
     if (process.env.AIO_TEST_LAZY_HISTORY === '1') {
       const { DatabaseSync } = require('node:sqlite');
@@ -173,7 +173,7 @@ async function main() {
         }
         if (codexFixture) {
           await require('./verify-codex-submission.cjs').verifyCodexSubmission(window, frame, codexFixture);
-          console.log('Real Codex verified direct Enter with IME, a single-line follow-up, and native multiline startup.');
+          console.log('Real Codex verified IME, manual drafts, and exact multiline follow-ups in the same terminal and conversation, including a Bot-managed worker.');
           return;
         }
         if (process.env.AIO_TEST_LAZY_HISTORY === '1') {

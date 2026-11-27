@@ -1,32 +1,32 @@
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/research/tauri-spike/omp-metadata-worker.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/omp-metadata-worker.ts
 var import_node_worker_threads = require("node:worker_threads");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/validation.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/validation.ts
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/bucketed.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/bucketed.ts
 var import_node_path = require("node:path");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/src/lib/transcript-fallbacks.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/transcript-fallbacks.ts
 var DISCARDED_RETRY_FALLBACK = "The model discarded a failed attempt before finishing this turn.";
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/metadata.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/metadata.ts
 var import_node_fs2 = require("node:fs");
 var import_promises2 = require("node:fs/promises");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/jsonl-limits.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/jsonl-limits.ts
 var SESSION_FILE_RECORD_LIMIT_BYTES = 64 * 1024 * 1024;
 var RPC_READ_FRAME_LIMIT_BYTES = 16 * 1024 * 1024;
 var RPC_WRITE_FRAME_LIMIT_BYTES = 2 * 1024 * 1024;
 var DAEMON_FRAME_LIMIT_BYTES = 1024 * 1024;
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/transcript.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/transcript.ts
 var import_node_fs = require("node:fs");
 var import_promises = require("node:fs/promises");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/jsonl.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/jsonl.ts
 var import_node_string_decoder = require("node:string_decoder");
 var MAX_UNFRAMED_BYTES = SESSION_FILE_RECORD_LIMIT_BYTES;
 var FragmentedLineBuffer = class {
@@ -89,7 +89,7 @@ async function* strictJsonLines(stream, maxUnframedBytes = MAX_UNFRAMED_BYTES) {
   if (finalLine !== void 0) yield finalLine;
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/transcript.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/transcript.ts
 var MAX_TRANSCRIPT_GRAPH_BYTES = 16 * 1024 * 1024;
 var MAX_TRANSCRIPT_GRAPH_RECORDS = 1e4;
 var MAX_TRANSCRIPT_MESSAGES = 400;
@@ -473,7 +473,7 @@ async function readTranscriptWithDialect(dialect, filePath, isStreaming) {
 }
 var readTranscript = createTranscriptReader();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/metadata.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/metadata.ts
 var MAX_SESSION_FILE_BYTES = 256 * 1024 * 1024;
 var MAX_METADATA_RECORDS = 2e5;
 var MAX_METADATA_RECORD_BYTES = SESSION_FILE_RECORD_LIMIT_BYTES;
@@ -653,7 +653,7 @@ function createIncrementalMetadataReader(parser, io = nodeMetadataReaderIo, rese
   };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/bucketed.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/bucketed.ts
 var BUCKETED_SESSION_FILE_NAME = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_[0-9a-f][0-9a-f-]*\.jsonl$/i;
 function timestampFromBucketedSessionName(name) {
   const file = name.slice(name.lastIndexOf("/") + 1);
@@ -750,7 +750,7 @@ function createBranchSummaryTranscriptReader() {
   });
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/electron/main/sessions/omp.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/omp.ts
 var OMP_TITLE_SLOT_BYTES = 256;
 var ompMetadataParser = createBucketedMetadataParser((state, value) => {
   if (value.type === "model_change" && typeof value.model === "string") {
@@ -793,7 +793,7 @@ function createOmpSessionMetadataReader(io = nodeMetadataReaderIo) {
 }
 var readOmpTranscript = createBranchSummaryTranscriptReader();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/research/tauri-spike/omp-metadata-worker.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/omp-metadata-worker.ts
 var port = import_node_worker_threads.parentPort;
 if (!port) throw new Error("OMP metadata worker requires a parent port");
 var read = createOmpSessionMetadataReader();

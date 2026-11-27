@@ -16,7 +16,7 @@ async function waitFor(predicate, message, timeout = 12000) {
   throw new Error(message)
 }
 
-async function compileBotFixture(project) {
+async function compileBotFixture(project, exposeTestCapability = false) {
   const source = path.join(project, 'bot-fixture.cs')
   const executable = path.join(project, 'bot-fixture.exe')
   const escapedProject = project.replaceAll('"', '""')
@@ -36,6 +36,11 @@ async function compileBotFixture(project) {
     '    if (args.Length == 1 && args[0] == "--version") { Console.WriteLine("1.0.0 (Claude Code)"); return 0; }',
     '    bool bot = !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("AIO_BOT_SESSION_ID"));',
     '    File.WriteAllText(Path.Combine(@"' + escapedProject + '", (bot ? "bot" : "worker") + "-started.txt"), String.Join("|", args), new UTF8Encoding(false));',
+    ...(exposeTestCapability ? [
+      '    if (bot) File.WriteAllLines(Path.Combine(@"' + escapedProject + '", "bot-control.fixture"), new[] {',
+      '      Environment.GetEnvironmentVariable("AIO_BOT_API_URL"), Environment.GetEnvironmentVariable("AIO_BOT_CAPABILITY"),',
+      '    }, new UTF8Encoding(false));',
+    ] : []),
     '    int index = 0;',
     '    Console.Write("\\u001b[?2004h❯");',
     '    string line;',
@@ -60,7 +65,8 @@ async function compileBotFixture(project) {
   await fs.writeFile(source, program, 'utf8')
   const framework = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319')
   execFileSync(path.join(framework, 'csc.exe'), [
-    '/nologo', '/target:exe', '/r:' + path.join(framework, 'System.Net.Http.dll'), '/out:' + executable, source,
+    '/nologo', '/target:exe', '/r:' + path.join(framework, 'System.Net.Http.dll'),
+    '/out:' + executable, source,
   ], { windowsHide: true, stdio: 'pipe' })
   return executable
 }

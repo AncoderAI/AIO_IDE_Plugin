@@ -1,7 +1,7 @@
 {
   "source": "Ancoder/AIO",
-  "sourceVersion": "2.0.1",
-  "sourceHead": "def7f85df4ccff835aac67e3c2a5eb431c356d29",
+  "sourceVersion": "2.0.2",
+  "sourceHead": "561bc25d4aeeec8310ab279e52e997b0f3ad1988",
   "syncedUpstreamCommits": [
     "492adf86872f0bb05723e67a8290690c7baf506c",
     "561bc25d4aeeec8310ab279e52e997b0f3ad1988"
@@ -20,9 +20,10 @@
     "ui/index.html",
     "service/workbench-service.cjs",
     "service/omp-metadata-worker.cjs",
+    "service/aio-bot-cli.cjs",
     "service/aio-omp-config.yml",
     "service/aio-terminal-host.exe",
-    "service/aio-bot-cli.cjs"
+    "service/aio-codex-editor.cjs"
   ],
   "dependencies": {
     "npm": [

@@ -16,7 +16,7 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-mD5KhF/research/tauri-spike/bot-cli.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/bot-cli.ts
 var bot_cli_exports = {};
 __export(bot_cli_exports, {
   parseBotCliArgs: () => parseBotCliArgs,

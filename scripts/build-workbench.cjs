@@ -408,23 +408,246 @@ async function buildService() {
           if (!source.includes(codexState)) throw new Error('AIO Bot Codex editor state anchor changed')
           source = source.replace(codexState, currentCodexState)
           const worker = 'launch.env = environment as Record<string, string>'
-          const configured = `// Bot-driven Codex tasks use explicit bracketed paste. Keep Codex's native
-        // paste handling so CR separators stay inside the draft until final Enter.
+          const configured = `// Bot-driven Codex tasks use explicit submission channels rather than
+        // Codex's paste-burst heuristic. Warm multiline tasks use the external editor.
         if (agent === 'codex' && launch.args[0] === '-c' && launch.args[1] === 'disable_paste_burst=true') launch.args.splice(0, 2)
-        ${worker}`
+        launch.env = { ...launch.env, ...environment as Record<string, string> }`
           if (!source.includes(worker)) throw new Error('AIO Bot worker launch anchor changed')
           source = source.replace(worker, configured)
+
+          const resolver = 'async function resolveTerminalAgent(context: ServiceContext, agent: unknown, fresh: unknown, entry?: SavedTerminalRestore, restoring = false): Promise<TerminalProgram> {'
+          const editorSupport = `function quoteCodexEditorArgument(value: string): string {
+  return '"' + value.replaceAll('"', '\\\"') + '"'
+}
+
+function splitWindowsEditorCommand(value: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let quoted = false
+  let started = false
+  for (let index = 0; index < value.length;) {
+    const character = value[index]
+    if (/\\s/.test(character) && !quoted) {
+      if (started) { result.push(current); current = ''; started = false }
+      index += 1
+      continue
+    }
+    if (character !== '\\\\' && character !== '"') {
+      current += character
+      started = true
+      index += 1
+      continue
+    }
+    if (character === '"') {
+      quoted = !quoted
+      started = true
+      index += 1
+      continue
+    }
+    let slashes = 0
+    while (value[index + slashes] === '\\\\') slashes += 1
+    if (value[index + slashes] === '"') {
+      current += '\\\\'.repeat(Math.floor(slashes / 2))
+      if (slashes % 2) current += '"'
+      else quoted = !quoted
+      started = true
+      index += slashes + 1
+    } else {
+      current += '\\\\'.repeat(slashes)
+      started = true
+      index += slashes
+    }
+  }
+  if (quoted) throw new Error('Configured Codex editor command has an unmatched quote')
+  if (started) result.push(current)
+  return result
+}
+
+async function configureCodexEditor(context: ServiceContext, program: TerminalProgram): Promise<TerminalProgram> {
+  if (program.agent !== 'codex' || process.platform !== 'win32' || (context.smoke && !context.liveCli)) return program
+  const spool = resolve(context.terminalRestoreRoot, 'codex-editor', randomUUID())
+  await mkdir(spool, { recursive: true })
+  const helper = resolve(__dirname, 'aio-codex-editor.cjs')
+  const editor = quoteCodexEditorArgument(process.execPath) + ' ' + quoteCodexEditorArgument(helper)
+  const fallback = process.env.VISUAL ?? process.env.EDITOR
+  const fallbackArgv = fallback ? splitWindowsEditorCommand(fallback) : []
+  program.env = {
+    ...program.env,
+    AIO_CODEX_EDITOR_SPOOL: spool,
+    ...(fallbackArgv.length ? { AIO_CODEX_EDITOR_FALLBACK_ARGV: JSON.stringify(fallbackArgv) } : {}),
+    VISUAL: editor,
+    EDITOR: editor,
+  }
+  return program
+}
+
+${resolver}`
+          if (!source.includes(resolver)) throw new Error('AIO Codex terminal resolver anchor changed')
+          source = source.replace(resolver, editorSupport)
+          const entryReturn = 'return { executable, args: terminalInteractiveArgs(agent, terminalSessionArgs(entry, directory, restoring)), label, agent, bracketedPasteExpected: true, editorReadyTexts: terminalEditorState[agent]?.ready, editorBusyTexts: terminalEditorState[agent]?.busy }'
+          const configuredEntryReturn = 'return configureCodexEditor(context, { executable, args: terminalInteractiveArgs(agent, terminalSessionArgs(entry, directory, restoring)), label, agent, bracketedPasteExpected: true, editorReadyTexts: terminalEditorState[agent]?.ready, editorBusyTexts: terminalEditorState[agent]?.busy })'
+          if (!source.includes(entryReturn)) throw new Error('AIO Codex restored terminal editor anchor changed')
+          source = source.replace(entryReturn, configuredEntryReturn)
+          const finalReturn = 'return { executable, args: terminalInteractiveArgs(agent, []), label, agent, bracketedPasteExpected: true, editorReadyTexts: terminalEditorState[agent]?.ready, editorBusyTexts: terminalEditorState[agent]?.busy }'
+          const configuredFinalReturn = 'return configureCodexEditor(context, { executable, args: terminalInteractiveArgs(agent, []), label, agent, bracketedPasteExpected: true, editorReadyTexts: terminalEditorState[agent]?.ready, editorBusyTexts: terminalEditorState[agent]?.busy })'
+          if (!source.includes(finalReturn)) throw new Error('AIO Codex fresh terminal editor anchor changed')
+          source = source.replace(finalReturn, configuredFinalReturn)
           return { contents: source, loader: 'ts' }
         })
         build.onLoad({ filter: /electron[\\/]main[\\/]terminal\.ts$/ }, (args) => {
           let source = readFileSync(args.path, 'utf8')
-          const normalized = "const normalized = text.replace(/\\r\\n?|\\n/g, '\\r')"
-          const guarded = `${normalized}
-    if (terminal.agent === 'codex' && normalized.includes('\\r')) {
-      throw new TypeError('Codex follow-up tasks must be single-line; create a fresh Codex worker with create codex --stdin for a multiline task')
-    }`
-          if (!source.includes(normalized)) throw new Error('AIO Bot terminal multiline guard anchor changed')
-          source = source.replace(normalized, guarded)
+          const submissionField = 'taskSubmission?: Promise<void>'
+          const editorFields = `${submissionField}
+  codexEditorSpool?: string
+  outputGeneration: number
+  bracketedPasteDisabledGeneration: number
+  bracketedPasteEnabledGeneration: number`
+          if (!source.includes(submissionField)) throw new Error('AIO Codex owned terminal field anchor changed')
+          source = source.replace(submissionField, editorFields)
+
+          const ownedState = "pendingOutput: '', pendingOutputBytes: 0, bracketedPasteExpected:"
+          const editorOwnedState = "pendingOutput: '', pendingOutputBytes: 0, codexEditorSpool: program?.env?.AIO_CODEX_EDITOR_SPOOL, outputGeneration: 0, bracketedPasteDisabledGeneration: 0, bracketedPasteEnabledGeneration: 0, bracketedPasteExpected:"
+          if (!source.includes(ownedState)) throw new Error('AIO Codex owned terminal state anchor changed')
+          source = source.replace(ownedState, editorOwnedState)
+
+          const outputAnchor = "if (retryMessage) recentOutput = (recentOutput + data).slice(-4096)"
+          const countedOutput = `${outputAnchor}
+        owned.outputGeneration += 1`
+          if (!source.includes(outputAnchor)) throw new Error('AIO Codex output generation anchor changed')
+          source = source.replace(outputAnchor, countedOutput)
+
+          const pasteModeAnchor = 'if (enabledAt >= 0 || disabledAt >= 0) owned.bracketedPasteMode = enabledAt > disabledAt'
+          const trackedPasteMode = `if (enabledAt >= 0 || disabledAt >= 0) {
+          const nextBracketedPasteMode = enabledAt > disabledAt
+          if (nextBracketedPasteMode !== owned.bracketedPasteMode) {
+            owned.bracketedPasteMode = nextBracketedPasteMode
+            if (nextBracketedPasteMode) owned.bracketedPasteEnabledGeneration += 1
+            else owned.bracketedPasteDisabledGeneration += 1
+          }
+        }`
+          if (!source.includes(pasteModeAnchor)) throw new Error('AIO Codex bracketed paste transition anchor changed')
+          source = source.replace(pasteModeAnchor, trackedPasteMode)
+
+          const finishAnchor = "owned.taskSummary = undefined"
+          const cleanupSpool = `${finishAnchor}
+      if (owned.codexEditorSpool) void import('node:fs/promises').then(({ rm }) => rm(owned.codexEditorSpool!, { recursive: true, force: true })).catch(() => undefined)`
+          if (!source.includes(finishAnchor)) throw new Error('AIO Codex spool cleanup anchor changed')
+          source = source.replace(finishAnchor, cleanupSpool)
+
+          const submitStart = source.indexOf('  submitTask(owner: TerminalOwner, idValue: unknown, textValue: unknown): Promise<void> {')
+          const submitEnd = source.indexOf('  private async waitForTerminalReady(', submitStart)
+          if (submitStart < 0 || submitEnd < 0) throw new Error('AIO Codex terminal submission method anchor changed')
+          const editorSubmission = `  submitTask(owner: TerminalOwner, idValue: unknown, textValue: unknown): Promise<void> {
+    const terminal = this.owned(owner, idValue)
+    const text = requireString(textValue, 'terminal task', { min: 1, max: 64 * 1024 })
+    const editorText = text.replace(/\\r\\n?/g, '\\n')
+    const normalized = editorText.replaceAll('\\n', '\\r')
+    for (const character of editorText) {
+      const code = character.charCodeAt(0)
+      if ((code < 32 && code !== 9 && code !== 10) || (code >= 127 && code <= 159)) {
+        throw new TypeError('terminal task contains control characters')
+      }
+    }
+    const summary = summarizeCodingTask(editorText)
+    const deadline = Date.now() + 8_000
+    const previous = terminal.taskSubmission ?? Promise.resolve()
+    const submission = previous.catch(() => undefined).then(async () => {
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      await this.waitForTerminalReady(terminal, deadline)
+      if (terminal.agent === 'codex' && editorText.includes('\\n')) {
+        await this.submitCodexEditorTask(terminal, editorText, summary, deadline)
+        return
+      }
+      if (!terminal.bracketedPasteMode && /[\\r\\t]/.test(normalized)) {
+        throw new TypeError('terminal task requires bracketed paste mode for multiline input')
+      }
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      terminal.terminal.write(terminal.bracketedPasteMode
+        ? \`\\x1b[200~\${normalized}\\x1b[201~\\x1b[C\\r\`
+        : \`\${normalized}\\r\`)
+      terminal.taskSummary = summary || undefined
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+    })
+    const queued = submission.finally(() => {
+      if (terminal.taskSubmission === queued) terminal.taskSubmission = undefined
+    })
+    terminal.taskSubmission = queued
+    return queued
+  }
+
+  private async submitCodexEditorTask(terminal: OwnedTerminal, text: string, summary: string, deadline: number): Promise<void> {
+    if (!terminal.codexEditorSpool) throw new Error('This Codex terminal does not support reliable multiline follow-up tasks')
+    const { createHash, randomUUID } = await import('node:crypto')
+    const { readFile, rename, rm, writeFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const nonce = randomUUID()
+    const bytes = Buffer.byteLength(text)
+    const sha256 = createHash('sha256').update(text).digest('hex')
+    const requestPath = join(terminal.codexEditorSpool, 'request.json')
+    const ackPath = join(terminal.codexEditorSpool, 'ack.json')
+    const temporaryPath = join(terminal.codexEditorSpool, \`request.\${nonce}.tmp\`)
+    const consumedPath = join(terminal.codexEditorSpool, \`\${nonce}.request.json\`)
+    await Promise.all([requestPath, ackPath, temporaryPath, consumedPath].map((path) => rm(path, { force: true })))
+    try {
+      await writeFile(temporaryPath, JSON.stringify({ v: 1, nonce, text, bytes, sha256 }), { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+      await rename(temporaryPath, requestPath)
+      terminal.editorReady = false
+      terminal.editorOutputWindow = ''
+      const outputGeneration = terminal.outputGeneration
+      const disabledGeneration = terminal.bracketedPasteDisabledGeneration
+      const enabledGeneration = terminal.bracketedPasteEnabledGeneration
+      terminal.terminal.write('\\x07')
+
+      let acknowledgment: Record<string, unknown> | undefined
+      while (!terminal.terminating && !terminal.exited && Date.now() < deadline) {
+        try {
+          const candidate = JSON.parse(await readFile(ackPath, 'utf8')) as Record<string, unknown>
+          if (candidate.nonce === nonce) { acknowledgment = candidate; break }
+        } catch { /* helper has not atomically acknowledged this nonce yet */ }
+        await new Promise<void>((resolve) => setTimeout(resolve, 20))
+      }
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      if (!acknowledgment) throw new Error('Codex external editor did not acknowledge the multiline task')
+      if (acknowledgment.status === 'draft-not-empty') {
+        throw new Error('Codex already has a draft; multiline task was not injected or submitted')
+      }
+      if (acknowledgment.status !== 'consumed' || acknowledgment.bytes !== bytes || acknowledgment.sha256 !== sha256) {
+        throw new Error(typeof acknowledgment.error === 'string' ? acknowledgment.error : 'Codex external editor acknowledgment failed integrity validation')
+      }
+      const acknowledgedAt = Date.now()
+      while ((!terminal.editorReady || !terminal.bracketedPasteMode || terminal.outputGeneration <= outputGeneration
+        || terminal.bracketedPasteDisabledGeneration <= disabledGeneration
+        || terminal.bracketedPasteEnabledGeneration <= enabledGeneration)
+        && !terminal.terminating && !terminal.exited && Date.now() < deadline) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 20))
+      }
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      if (!terminal.editorReady || !terminal.bracketedPasteMode || terminal.outputGeneration <= outputGeneration
+        || terminal.bracketedPasteDisabledGeneration <= disabledGeneration
+        || terminal.bracketedPasteEnabledGeneration <= enabledGeneration) {
+        throw new Error('Codex did not suspend and reload the multiline draft after the external editor exited')
+      }
+      const reloadSettleMs = acknowledgedAt + 300 - Date.now()
+      if (reloadSettleMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, reloadSettleMs))
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      // A trailing @, $, or slash may open Codex completion UI. Escape closes
+      // that popup before Home moves to a neutral cursor position. Neither key
+      // changes the externally loaded draft; only the final Enter submits it.
+      terminal.terminal.write('\\x1b')
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+      terminal.terminal.write('\\x1b[H')
+      await new Promise<void>((resolve) => setTimeout(resolve, 50))
+      if (terminal.terminating || terminal.exited) throw new Error('Terminal is not running')
+      terminal.terminal.write('\\r')
+      terminal.taskSummary = summary || undefined
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+    } finally {
+      await Promise.all([requestPath, ackPath, temporaryPath, consumedPath].map((path) => rm(path, { force: true }).catch(() => undefined)))
+    }
+  }
+
+`
+          source = source.slice(0, submitStart) + editorSubmission + source.slice(submitEnd)
           return { contents: source, loader: 'ts' }
         })
       },
@@ -441,6 +664,7 @@ async function buildService() {
     logLevel: 'info',
   })
   for (const path of Object.keys(result.metafile.inputs)) trackDependency(resolve(path))
+  copyFile(join(extensionRoot, 'scripts', 'aio-codex-editor.cjs'), join(serviceOutput, 'aio-codex-editor.cjs'))
   } finally {
     rmSync(exactRoot, { recursive: true, force: true })
   }
@@ -573,6 +797,7 @@ function writeManifest(dependencies) {
       'service/workbench-service.cjs',
       'service/omp-metadata-worker.cjs',
       'service/aio-bot-cli.cjs',
+      'service/aio-codex-editor.cjs',
       'service/aio-omp-config.yml',
       ...(process.platform === 'win32' ? ['service/aio-terminal-host.exe'] : []),
     ],
@@ -603,7 +828,7 @@ function updateBotManifest() {
   const manifest = JSON.parse(readFileSync(filename, 'utf8'))
   manifest.syncedUpstreamCommits = [...new Set([...(manifest.syncedUpstreamCommits || []), botSourceCommit])]
   manifest.syncedUpstreamFeatures = [...new Set([...(manifest.syncedUpstreamFeatures || []), 'aio-bot-control', 'codex-terminal-submission'])]
-  manifest.generated = [...new Set([...(manifest.generated || []), 'service/aio-bot-cli.cjs'])]
+  manifest.generated = [...new Set([...(manifest.generated || []), 'service/aio-bot-cli.cjs', 'service/aio-codex-editor.cjs'])]
   writeFileSync(filename, `${JSON.stringify(manifest, null, 2)}\n`)
 }
 

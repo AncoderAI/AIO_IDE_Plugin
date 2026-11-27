@@ -11,7 +11,9 @@ process.once('message', ({ executable, project, prompt }) => {
   });
   terminal.onExit(() => process.exit(0));
   terminal.onData(data => {
-    if (process.connected) process.send(data);
+    if (process.connected) process.send(data, error => {
+      if (error && error.code !== 'EPIPE' && error.code !== 'ERR_IPC_CHANNEL_CLOSED') throw error;
+    });
     if (data.includes('\x1b[6n')) terminal.write('\x1b[1;1R');
     if (data.includes('\x1b[c')) terminal.write('\x1b[?1;2c');
     if (data.includes('\x1b[>c')) terminal.write('\x1b[>0;276;0c');
