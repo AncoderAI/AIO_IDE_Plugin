@@ -207,6 +207,55 @@ async function buildUi() {
           if (!source.includes(constructor) || !source.includes(open) || !source.includes(dispose) || !source.includes(delayedFocus)) {
             throw new Error('AIO TerminalDrawer clipboard anchors changed')
           }
+          const contextTimer = '  const activeContextTimerRef = useRef<number | undefined>(undefined)'
+          const outputRefs = `${contextTimer}
+  const hiddenOutputRef = useRef('')
+  const hiddenOutputTruncatedRef = useRef(false)
+  const hiddenOutputCallbacksRef = useRef<(() => void)[]>([])
+  const flushHiddenOutputRef = useRef<() => void>(() => undefined)`
+          const visibleFrame = `    const frame = requestAnimationFrame(() => {
+      try { fitRef.current?.fit() } catch { /* tab is transitioning */ }`
+          const visibleFlush = `    const frame = requestAnimationFrame(() => {
+      flushHiddenOutputRef.current()
+      try { fitRef.current?.fit() } catch { /* tab is transitioning */ }`
+          const announceExitWrite = "      terminal.writeln(`\\r\\n\\x1b[90m${tRef.current('terminal.processExited', { code: exitCode })}\\x1b[0m`)"
+          const outputWriter = `    const writeTerminalOutput = (data: string, callback?: () => void) => {
+      // A newly started CLI may wait for terminal capability replies. Let xterm
+      // parse its startup handshake even if a newer tab became active.
+      if (visibleRef.current || waitingForOutput) {
+        flushHiddenOutputRef.current()
+        terminal.write(data, callback)
+        return
+      }
+      const maximum = 256 * 1024
+      const next = hiddenOutputRef.current + data
+      if (next.length > maximum) {
+        const tail = next.slice(-maximum)
+        const newline = tail.indexOf('\n')
+        hiddenOutputRef.current = newline >= 0 ? tail.slice(newline + 1) : tail
+        hiddenOutputTruncatedRef.current = true
+      } else hiddenOutputRef.current = next
+      // Output callbacks only schedule startup/context checks. Keep a bounded
+      // sample while inactive instead of allocating one closure per chunk.
+      if (callback && hiddenOutputCallbacksRef.current.length < 32) hiddenOutputCallbacksRef.current.push(callback)
+    }
+    flushHiddenOutputRef.current = () => {
+      const data = hiddenOutputRef.current
+      const truncated = hiddenOutputTruncatedRef.current
+      const callbacks = hiddenOutputCallbacksRef.current
+      hiddenOutputRef.current = ''
+      hiddenOutputTruncatedRef.current = false
+      hiddenOutputCallbacksRef.current = []
+      if (!data && !truncated) return
+      const notice = truncated
+        ? '\\x1bc\\r\\n\\x1b[33m[AIO: inactive terminal output was truncated]\\x1b[0m\\r\\n'
+        : ''
+      terminal.write(notice + data, () => { for (const done of callbacks) done() })
+    }
+`
+          if (!source.includes(contextTimer) || !source.includes(visibleFrame) || !source.includes(announceExitWrite)) {
+            throw new Error('AIO TerminalDrawer inactive output anchors changed')
+          }
           const registered = `${open}
     const terminalClipboardId = crypto.randomUUID()
     const terminalElement = terminal.element
@@ -231,9 +280,16 @@ async function buildUi() {
       }))
       ${dispose}`
           return source
+            .replace(contextTimer, outputRefs)
+            .replace(visibleFrame, visibleFlush)
             .replace(constructor, constructor + '\n      minimumContrastRatio: 4.5,')
             .replace(open, registered)
             .replace(delayedFocus, guardedFocus)
+            .replace('    const announceExit = (exitCode: number) => {', outputWriter + '    const announceExit = (exitCode: number) => {')
+            .replace(announceExitWrite, `      writeTerminalOutput(\`\\r\\n\\x1b[90m\${tRef.current('terminal.processExited', { code: exitCode })}\\x1b[0m\\r\\n\`)`)
+            .replace('if (event.terminalId === terminalIdRef.current) terminal.write(event.data, () => {', 'if (event.terminalId === terminalIdRef.current) writeTerminalOutput(event.data, () => {')
+            .replace('if (initialOutput) terminal.write(initialOutput, () => {', 'if (initialOutput) writeTerminalOutput(initialOutput, () => {')
+            .replace('      terminalRef.current?.focus()\n      scheduleActiveContext()', '      terminalRef.current?.focus()\n      scheduleActiveContext()')
             .replace(dispose, unregistered)
         },
       },
@@ -302,9 +358,8 @@ function patchGeneratedTerminalClipboard() {
   const withFocus = withCleanup.includes(guardedFocus)
     ? withCleanup
     : withCleanup.replace(previousGuardedFocus, guardedFocus).replace(delayedFocus, guardedFocus)
-  if (!withFocus.includes(registered) || !withFocus.includes(unregistered) || !withFocus.includes(guardedFocus)) {
-    throw new Error('Generated TerminalDrawer clipboard anchors changed')
-  }
+  if (!withFocus.includes('aio:terminal-register') || !withFocus.includes('aio:terminal-unregister')
+    || !withFocus.includes('aio:terminal-focus-request')) throw new Error('Generated TerminalDrawer clipboard anchors changed')
   writeFileSync(chunk, withFocus)
 
   const mainChunks = readdirSync(join(uiOutput, 'assets')).filter((name) => /^main-.*\.js$/.test(name))
@@ -366,6 +421,36 @@ function patchGeneratedTerminalClipboard() {
     throw new Error('Generated AIO keyboard or panel routing anchor changed')
   }
   writeFileSync(mainChunk, pages)
+}
+
+function patchGeneratedInactiveTerminalOutput() {
+  const chunks = readdirSync(join(uiOutput, 'assets')).filter((name) => /^TerminalDrawer-.*\.js$/.test(name))
+  if (chunks.length !== 1) throw new Error('Expected one generated TerminalDrawer chunk')
+  const chunk = join(uiOutput, 'assets', chunks[0])
+  let source = readFileSync(chunk, 'utf8')
+  if (source.includes('AIOHiddenOutput=i.useRef')) return
+  const hiddenRefsAnchor = 'R=i.useRef(W),y=i.useRef(void 0);N.current=z'
+  const hiddenRefs = 'R=i.useRef(W),y=i.useRef(void 0),AIOHiddenOutput=i.useRef(""),AIOHiddenTruncated=i.useRef(!1),AIOHiddenCallbacks=i.useRef([]),AIOFlushHidden=i.useRef(()=>{});N.current=z'
+  const visibleAnchor = 'const a=requestAnimationFrame(()=>{try{$.current?.fit()}'
+  const visibleFlush = 'const a=requestAnimationFrame(()=>{AIOFlushHidden.current();try{$.current?.fit()}'
+  const writerAnchor = 'const ge=m=>{'
+  const writer = 'const AIOWriteOutput=(m,L)=>{if(N.current||oe){AIOFlushHidden.current(),r.write(m,L);return}const P=262144,H=AIOHiddenOutput.current+m;if(H.length>P){let T=H.slice(-P),h=T.indexOf("\\n");AIOHiddenOutput.current=h>=0?T.slice(h+1):T,AIOHiddenTruncated.current=!0}else AIOHiddenOutput.current=H;L&&AIOHiddenCallbacks.current.length<32&&AIOHiddenCallbacks.current.push(L)};AIOFlushHidden.current=()=>{const m=AIOHiddenOutput.current,L=AIOHiddenTruncated.current,P=AIOHiddenCallbacks.current;if(AIOHiddenOutput.current="",AIOHiddenTruncated.current=!1,AIOHiddenCallbacks.current=[],!m&&!L)return;const H=L?"\\x1bc\\r\\n\\x1b[33m[AIO: inactive terminal output was truncated]\\x1b[0m\\r\\n":"";r.write(H+m,()=>{for(const T of P)T()})};const ge=m=>{'
+  const outputAnchor = 'l.terminalId===s.current)r.write(l.data,()=>{pe(),I()})'
+  const outputBuffered = 'l.terminalId===s.current)AIOWriteOutput(l.data,()=>{pe(),I()})'
+  const replayAnchor = 've?r.write(ve,()=>{pe(),Re().catch(()=>{})})'
+  const replayBuffered = 've?AIOWriteOutput(ve,()=>{pe(),Re().catch(()=>{})})'
+  if (![hiddenRefsAnchor, visibleAnchor, writerAnchor, outputAnchor, replayAnchor].every((anchor) => source.includes(anchor))) {
+    throw new Error('Generated TerminalDrawer inactive output anchors changed')
+  }
+  source = source.replace(hiddenRefsAnchor, hiddenRefs)
+    .replace(visibleAnchor, visibleFlush)
+    .replace(writerAnchor, writer)
+    .replace(outputAnchor, outputBuffered)
+    .replace(replayAnchor, replayBuffered)
+  if (!source.includes('AIOHiddenOutput=i.useRef') || source.includes(outputAnchor)) {
+    throw new Error('Generated TerminalDrawer inactive output patch failed')
+  }
+  writeFileSync(chunk, source)
 }
 
 async function buildService() {
@@ -1046,6 +1131,10 @@ async function main() {
   }
   if (process.argv.includes('--patch-terminal-clipboard')) {
     patchGeneratedTerminalClipboard()
+    return
+  }
+  if (process.argv.includes('--patch-inactive-terminal-output')) {
+    patchGeneratedInactiveTerminalOutput()
     return
   }
   mkdirSync(outputRoot, { recursive: true })

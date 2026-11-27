@@ -45,6 +45,12 @@ test('webview bridge correlates requests and forwards named events', async () =>
   target.emit('message', { data: { type: 'aio:event', event: 'coding-event', payload: { event: 'coding:delta' } } })
   assert.deepEqual(received, { event: 'coding:delta' })
   unlisten()
+  const output = []
+  const stop = await bridge.event.listen('desktop-event', (event) => output.push(event.payload))
+  const payloads = [{ terminalId: 'a', data: 'first' }, { terminalId: 'b', data: 'second' }]
+  target.emit('message', { data: { type: 'aio:terminal-output', output: payloads } })
+  assert.deepEqual(output, payloads.map(payload => ({ event: 'terminal:data', payload })))
+  stop()
   target.emit('aio:file-preview-request')
   assert.deepEqual(sent.at(-1), { type: 'aio:file-preview-group', action: 'show' })
   target.emit('aio:file-preview-aio-enter')
@@ -536,5 +542,31 @@ test('workbench startup switch reads VS Code settings and respects a workspace o
   assert.equal((await request('settings:update', { launchAtLogin: true, theme: 'dark' })).launchAtLogin, true)
   assert.equal(globalPreference, false)
   assert.equal(workspacePreference, true)
+  host.dispose()
+})
+
+
+test('the host batches terminal output independently per tab and flushes before an exit', () => {
+  const sent = []
+  const host = new WorkbenchHost({ window: { createOutputChannel: () => ({ dispose() {} }) } }, {})
+  const panel = { webview: { postMessage: (message) => sent.push(message) } }
+  host.panel = panel
+  const data = (terminalId, value) => host.postEvent('desktop-event', {
+    event: 'terminal:data', payload: { terminalId, data: value },
+  })
+  data('one', 'begin')
+  data('two', 'peer')
+  data('one', ' end')
+  assert.deepEqual(sent, [])
+  host.postEvent('desktop-event', { event: 'terminal:exit', payload: { terminalId: 'one' } })
+  assert.deepEqual(sent, [
+    { type: 'aio:terminal-output', output: [{ terminalId: 'one', data: 'begin end' }, { terminalId: 'two', data: 'peer' }] },
+    { type: 'aio:event', event: 'desktop-event', payload: { event: 'terminal:exit', payload: { terminalId: 'one' } } },
+  ])
+  data('two', 'pending')
+  host.close(panel)
+  assert.equal(host.terminalOutput.size, 0)
+  assert.equal(host.terminalOutputTimer, undefined)
+  assert.equal(sent.length, 2)
   host.dispose()
 })

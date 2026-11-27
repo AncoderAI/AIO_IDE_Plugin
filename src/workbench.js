@@ -20,6 +20,8 @@ const {
 const MAX_REQUEST_BYTES = 2 * 1024 * 1024
 const MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 const REQUEST_TIMEOUT_MS = 90_000
+const TERMINAL_BATCH_DELAY_MS = 32
+const TERMINAL_BATCH_MAX_CHARS = 256 * 1024
 const MIN_NODE_VERSION = [22, 13, 0]
 
 function errorMessage(error) {
@@ -251,6 +253,9 @@ class WorkbenchHost {
     this.terminalClipboardSequence = 0
     this.terminalClipboardRequests = new Map()
     this.panelListeners = new Set()
+    this.terminalOutput = new Map()
+    this.terminalOutputChars = 0
+    this.terminalOutputTimer = undefined
     this.projectSwitch = undefined
     this.previewGroup = options.previewGroupController || new PreviewGroupController(vscode, context, options.previewGroup)
     this.previewReadyPanels = new WeakSet()
@@ -810,12 +815,38 @@ class WorkbenchHost {
   }
 
   postEvent(event, payload, panel = this.panel) {
-    if (panel && this.panel === panel) void panel.webview.postMessage({ type: 'aio:event', event, payload })
+    if (!panel || this.panel !== panel) return
+    if (event === 'desktop-event' && payload?.event === 'terminal:data') {
+      const { terminalId, data } = payload.payload
+      if (this.terminalOutputChars + data.length > TERMINAL_BATCH_MAX_CHARS) this.flushTerminalOutput(panel)
+      const chunks = this.terminalOutput.get(terminalId) || []
+      chunks.push(data)
+      this.terminalOutput.set(terminalId, chunks)
+      this.terminalOutputChars += data.length
+      if (!this.terminalOutputTimer) {
+        this.terminalOutputTimer = setTimeout(() => this.flushTerminalOutput(panel), TERMINAL_BATCH_DELAY_MS)
+      }
+      return
+    }
+    if (event === 'desktop-event' && payload?.event === 'terminal:exit') this.flushTerminalOutput(panel)
+    void panel.webview.postMessage({ type: 'aio:event', event, payload })
+  }
+
+  flushTerminalOutput(panel = this.panel) {
+    clearTimeout(this.terminalOutputTimer)
+    this.terminalOutputTimer = undefined
+    if (panel && this.panel === panel && this.terminalOutput.size) {
+      const output = [...this.terminalOutput].map(([terminalId, chunks]) => ({ terminalId, data: chunks.join('') }))
+      void panel.webview.postMessage({ type: 'aio:terminal-output', output })
+    }
+    this.terminalOutput.clear()
+    this.terminalOutputChars = 0
   }
 
   close(panel = this.panel) {
     if (panel && this.panel !== panel) return
     this.panel = undefined
+    this.flushTerminalOutput()
     void this.previewGroup.close()
     this.notifyPanelChanged()
     for (const request of this.referenceRequests.values()) {

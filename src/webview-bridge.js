@@ -231,11 +231,17 @@
       else response.resolve(data.result)
       return
     }
-    if (data.type !== 'aio:event' || typeof data.event !== 'string') return
-    for (const callback of listeners.get(data.event) || []) {
-      try { callback({ payload: data.payload }) } catch (error) { console.error('AIO event listener failed:', error) }
+    if (data.type === 'aio:terminal-output' && Array.isArray(data.output)) {
+      for (const payload of data.output) dispatchEvent('desktop-event', { event: 'terminal:data', payload })
+      return
     }
+    if (data.type === 'aio:event' && typeof data.event === 'string') dispatchEvent(data.event, data.payload)
   })
+  function dispatchEvent(event, payload) {
+    for (const callback of listeners.get(event) || []) {
+      try { callback({ payload }) } catch (error) { console.error('AIO event listener failed:', error) }
+    }
+  }
   target.addEventListener('aio:file-preview-request', () => {
     vscode.postMessage({ type: 'aio:file-preview-group', action: 'show' })
   })
