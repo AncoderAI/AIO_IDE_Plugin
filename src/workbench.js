@@ -421,10 +421,15 @@ class WorkbenchHost {
     const layout = await this.previewGroup.captureBaseline()
     const explorerOnRight = this.vscode.workspace.getConfiguration('workbench.sideBar').get('location') === 'right'
     if (explorerOnRight) await this.vscode.commands.executeCommand('workbench.action.moveSideBarLeft')
-    const groups = this.vscode.window.tabGroups?.all || []
+    const tabGroups = this.vscode.window.tabGroups
+    const initial = tabGroups?.all || []
+    const keep = initial.every(group => !group.tabs.length) ? initial.at(-1) : undefined
+    const empty = initial.filter(group => !group.tabs.length && group !== keep)
+    if (empty.length && tabGroups.close) await tabGroups.close(empty, true)
+    const groups = tabGroups?.all || []
     await this.ensureHorizontalGroups(layout, groups)
     const last = groups.reduce((right, group) => !right || group.viewColumn > right.viewColumn ? group : right, undefined)
-    const reuse = last?.viewColumn > 1 && !last.tabs.length
+    const reuse = last && !last.tabs.length
     if (!reuse) {
       if (groups.length > 1) await this.vscode.commands.executeCommand('workbench.action.focusLastEditorGroup')
       await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
@@ -460,6 +465,12 @@ class WorkbenchHost {
       if (this.panel !== panel || !panel.viewColumn) return
       const groups = tabs.all
       const count = groups.length
+      if (count === 1 && groups[0].tabs?.length > 1) {
+        panel.reveal(panel.viewColumn)
+        await this.vscode.commands.executeCommand('workbench.action.moveEditorToRightGroup')
+        await this.vscode.commands.executeCommand('workbench.action.lockEditorGroup')
+        await this.vscode.commands.executeCommand('workbench.action.focusPreviousGroup')
+      }
       if (count < 2) return
       const layout = await this.vscode.commands.executeCommand('vscode.getEditorLayout')
       if (this.panel !== panel) return
@@ -482,6 +493,7 @@ class WorkbenchHost {
       queue = queue.then(correct).catch(error => this.log.appendLine(errorMessage(error)))
     }
     this.disposables.push(tabs.onDidChangeTabGroups(schedule))
+    if (tabs.onDidChangeTabs) this.disposables.push(tabs.onDidChangeTabs(event => { if (event.opened.length && tabs.all.length === 1) schedule() }))
     let lastColumn = panel.viewColumn
     const listener = panel.onDidChangeViewState?.(() => {
       if (lastColumn === panel.viewColumn) return
