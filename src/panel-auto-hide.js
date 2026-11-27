@@ -78,8 +78,6 @@
     updateLocalizedControls()
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
     previewEdge.addEventListener('pointerenter', requestFilePreview)
-    previewEdge.addEventListener('focus', requestFilePreview)
-    previewEdge.addEventListener('click', requestFilePreview)
 
     const setPanel = (panel, visible) => {
       if (!panel) return

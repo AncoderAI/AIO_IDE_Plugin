@@ -19,17 +19,18 @@ public static class AioPreviewNative {
 '@
 
 function Find-AioTab($window) {
-  $name = [System.Windows.Automation.PropertyCondition]::new(
-    [System.Windows.Automation.AutomationElement]::NameProperty, 'AIO 工作台')
-  $items = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $name)
-  $best = $null
-  foreach ($item in $items) {
-    try {
-      $rect = $item.Current.BoundingRectangle
-      if ($rect.Width -gt 10 -and $rect.Height -gt 10 -and $rect.Height -lt 100) { $best = $item; break }
-    } catch {}
+  foreach ($label in @('AIO 工作台', 'AIO Workbench')) {
+    $name = [System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::NameProperty, $label)
+    $items = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $name)
+    foreach ($item in $items) {
+      try {
+        $rect = $item.Current.BoundingRectangle
+        if ($rect.Width -gt 10 -and $rect.Height -gt 10 -and $rect.Height -lt 100) { return $item }
+      } catch {}
+    }
   }
-  return $best
+  return $null
 }
 
 function Find-PreviewGroup($window, $aioTab) {

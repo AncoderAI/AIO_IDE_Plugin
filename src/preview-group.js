@@ -5,7 +5,6 @@ const { spawn } = require('node:child_process')
 const path = require('node:path')
 const readline = require('node:readline')
 
-const INITIAL_VISIBLE_MS = 2000
 const COLLAPSE_DELAY_MS = 180
 
 function cloneLayout(layout) {
@@ -79,12 +78,11 @@ class PreviewGroupController {
     this.hoverObserver = undefined
     this.hoveringPreview = false
     this.awaitingAioReentry = false
-    this.fileEditorFocused = false
+    this.previewRequested = false
     this.windowFocused = vscode.window.state?.focused !== false
     this.collapsed = false
     this.managed = false
     this.abandoned = false
-    this.readyAt = 0
     this.timer = undefined
     this.disposables = []
     this.queue = Promise.resolve()
@@ -107,23 +105,19 @@ class PreviewGroupController {
 
   attach(panel) {
     return this.run(async () => {
+      if (this.managed && this.panel === panel) return true
       this.panel = panel
       const layout = cloneLayout(await this.vscode.commands.executeCommand('vscode.getEditorLayout'))
-      if (!(isSingleGroupLayout(this.baselineLayout) || isSimpleTwoGroupLayout(this.baselineLayout)) || !isSimpleTwoGroupLayout(layout)) return false
+      if (!isSimpleTwoGroupLayout(layout)) return false
       this.expandedLayout = layout
       this.managed = true
-      this.fileEditorFocused = Boolean(this.vscode.window.activeTextEditor)
-      this.readyAt = Date.now() + (this.options.initialVisibleMs ?? INITIAL_VISIBLE_MS)
       const editorDisposable = this.vscode.window.onDidChangeActiveTextEditor?.((editor) => {
-        this.fileEditorFocused = Boolean(editor)
-        // VS Code has already restored a maximized layout before it can make a
-        // file editor active. Toggling here would maximize the file group and
-        // hide AIO again.
         if (editor && this.collapsed) {
+          // VS Code restores the split before it activates a file opened from Explorer.
+          // Re-maximize AIO until the user explicitly hovers the preview button.
           this.collapsed = false
-          void this.panel?.webview?.postMessage?.({ type: 'aio:file-preview-state', collapsed: false })
-        } else if (editor) void this.expand('editor')
-        else this.scheduleCollapse()
+          void this.collapse()
+        }
       })
       if (editorDisposable) this.disposables.push(editorDisposable)
       const windowDisposable = this.vscode.window.onDidChangeWindowState?.(({ focused }) => {
@@ -145,10 +139,17 @@ class PreviewGroupController {
       this.hoverObserver.on?.('state', (state) => {
         if (state === 'inactive') return
         if (state === 'inside') {
+          if (!this.previewRequested) {
+            this.hoveringPreview = false
+            this.scheduleCollapse()
+            return
+          }
           this.awaitingAioReentry = false
           this.hoveringPreview = true
-          void this.expand('hover')
+          clearTimeout(this.timer)
+          this.timer = undefined
         } else if (!this.awaitingAioReentry) {
+          this.previewRequested = false
           this.hoveringPreview = false
           this.scheduleCollapse()
         }
@@ -162,11 +163,11 @@ class PreviewGroupController {
   scheduleCollapse() {
     clearTimeout(this.timer)
     if (!this.managed || this.abandoned || this.collapsed || this.hoveringPreview
-      || this.fileEditorFocused || !this.windowFocused || !this.panel?.active) return
-    const delay = Math.max(this.options.collapseDelayMs ?? COLLAPSE_DELAY_MS, this.readyAt - Date.now())
+      || !this.windowFocused || !this.panel) return
+    const delay = this.options.collapseDelayMs ?? COLLAPSE_DELAY_MS
     this.timer = setTimeout(() => {
       this.timer = undefined
-      if (!this.hoveringPreview && !this.fileEditorFocused && this.windowFocused && this.panel?.active) {
+      if (!this.hoveringPreview && this.windowFocused && this.panel) {
         void this.collapse()
       }
     }, delay)
@@ -206,27 +207,31 @@ class PreviewGroupController {
 
   collapse() {
     return this.run(async () => {
-      if (!this.managed || this.abandoned || this.collapsed || this.hoveringPreview || this.fileEditorFocused
-        || !this.windowFocused || !this.panel?.active || Date.now() < this.readyAt) return false
+      if (!this.managed || this.abandoned || this.collapsed || this.hoveringPreview
+        || !this.windowFocused || !this.panel) return false
       const layout = await this.currentLayout()
       if (!sameSimpleLayout(layout, this.expandedLayout)) {
         this.abandon()
         return false
       }
+      this.panel.reveal?.(this.panel.viewColumn)
       await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
       this.collapsed = true
+      this.previewRequested = false
       await this.panel?.webview?.postMessage?.({ type: 'aio:file-preview-state', collapsed: true })
       return true
     })
   }
 
   showFromTrigger() {
+    this.previewRequested = true
     this.awaitingAioReentry = true
     this.hoveringPreview = true
     return this.expand('trigger')
   }
 
   aioPointerEntered() {
+    this.previewRequested = false
     this.awaitingAioReentry = false
     this.hoveringPreview = false
     this.scheduleCollapse()
@@ -255,7 +260,7 @@ class PreviewGroupController {
       this.abandoned = false
       this.hoveringPreview = false
       this.awaitingAioReentry = false
-      this.fileEditorFocused = false
+      this.previewRequested = false
     })
   }
 

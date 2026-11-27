@@ -27,24 +27,19 @@ async function editorGroups(window) {
 
 async function verifyPreviewGroup(window, frame, project) {
   const editor = window.locator('.monaco-editor[data-uri$="/first.txt"]').first();
-  await editor.waitFor({ state: 'visible' });
+  await editor.waitFor({ state: 'attached' });
   const tab = window.locator('.tab').filter({ hasText: 'first.txt' }).first();
-  await tab.waitFor({ state: 'visible' });
+  await tab.waitFor({ state: 'attached' });
 
-  const beforeEditor = await editor.boundingBox();
-  const beforeWorkbench = await (await frame.frameElement()).boundingBox();
-  assert.ok(beforeEditor && beforeWorkbench && separated(beforeEditor, beforeWorkbench),
-    'File and AIO must start in visible parallel groups: ' + JSON.stringify({ beforeEditor, beforeWorkbench }));
+  const initialWorkbench = await (await frame.frameElement()).boundingBox();
+  assert.ok(initialWorkbench);
   const groupCount = (await editorGroups(window)).length;
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  assert.ok((await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'File group collapsed before the two-second preview period elapsed.');
   await waitFor(async () => {
     const fileBox = await editor.boundingBox();
-    const aioBox = await (await frame.frameElement()).boundingBox();
-    return !fileBox || fileBox.width < beforeEditor.width * 0.35 || (aioBox && aioBox.width > beforeWorkbench.width + 80);
-  }, 'idle file group to release width', 5000);
+    return !fileBox || fileBox.width < 40;
+  }, 'file preview to start collapsed');
   const expandedWorkbench = await (await frame.frameElement()).boundingBox();
-  assert.ok(expandedWorkbench && expandedWorkbench.width > beforeWorkbench.width + 80, 'AIO did not gain the released editor width.');
+  assert.ok(expandedWorkbench && expandedWorkbench.width >= initialWorkbench.width, 'AIO did not start with the preview width released.');
   assert.equal((await editorGroups(window)).length, groupCount, 'Collapsing preview must preserve editor group count.');
   assert.equal(await tab.count(), 1, 'The open file tab was discarded while its group was collapsed.');
   const previewEdge = frame.locator('.aio-file-preview-edge').first();
@@ -60,13 +55,14 @@ async function verifyPreviewGroup(window, frame, project) {
   };
   await assertButtonOrder();
   assert.equal(await previewEdge.getAttribute('aria-keyshortcuts'), null);
-  await frame.locator('.title-toolbar__identity').click();
-  await window.keyboard.press('Control+f');
-  await window.keyboard.press('Escape');
-  assert.ok(((await editor.boundingBox())?.width || 0) < beforeEditor.width * 0.7,
-    'Ctrl+F must leave the file preview collapsed.');
+  await previewEdge.focus();
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.ok(((await editor.boundingBox())?.width || 0) < 40, 'Keyboard focus must not reveal the file preview.');
+  await previewEdge.evaluate(element => element.click());
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.ok(((await editor.boundingBox())?.width || 0) < 40, 'Programmatic click must not reveal the file preview.');
   await previewEdge.hover();
-  await waitFor(async () => (await editor.boundingBox())?.width > beforeEditor.width * 0.7, 'left preview edge to restore the file group');
+  await waitFor(async () => ((await editor.boundingBox())?.width || 0) > 120, 'file preview button hover to restore the file group');
   const restoredEditor = await editor.boundingBox();
   const restoredWorkbench = await (await frame.frameElement()).boundingBox();
   assert.ok(restoredEditor && restoredWorkbench && separated(restoredEditor, restoredWorkbench));
@@ -79,7 +75,7 @@ async function verifyPreviewGroup(window, frame, project) {
   await waitFor(async () => (await fs.readFile(path.join(project, 'first.txt'), 'utf8').catch(() => '')).includes(marker), 'saved editor contents');
   const workbench = frame.locator('.workbench');
   const workbenchBox = await workbench.boundingBox();
-  await workbench.click({ position: { x: workbenchBox.width / 2, y: Math.min(80, workbenchBox.height / 2) } });
+  await workbench.hover({ position: { x: workbenchBox.width / 2, y: Math.min(80, workbenchBox.height / 2) } });
   await waitFor(async () => ((await editor.boundingBox())?.width || 0) < restoredEditor.width * 0.7, 'saved preview group to collapse');
   await assertButtonOrder();
   await previewEdge.hover();
@@ -87,14 +83,13 @@ async function verifyPreviewGroup(window, frame, project) {
   assert.ok((await editor.locator('.view-lines').innerText()).includes(marker), 'Restored editor lost its saved model text.');
 
   await editor.click();
-  await window.keyboard.press('Control+f');
-  await window.locator('.monaco-editor .find-widget.visible').waitFor({ state: 'visible' });
-  await window.keyboard.press('Escape');
-  await window.evaluate(() => { window.__aioPreviewFocus = document.activeElement; });
   await workbench.hover({ position: { x: workbenchBox.width / 2, y: Math.min(80, workbenchBox.height / 2) } });
-  assert.equal(await window.evaluate(() => document.activeElement === window.__aioPreviewFocus), true,
-    'Hovering AIO stole focus from the file editor.');
+  await waitFor(async () => ((await editor.boundingBox())?.width || 0) < restoredEditor.width * 0.7,
+    'focused file preview to collapse after pointer exit');
 
+  await previewEdge.hover();
+  await waitFor(async () => (await editor.boundingBox())?.width > restoredEditor.width * 0.7,
+    'file preview restore before adding a third group');
   await editor.click();
   await window.keyboard.press(process.platform === 'darwin' ? 'Meta+\\' : 'Control+\\');
   await waitFor(async () => (await editorGroups(window)).length > groupCount, 'third editor group');
@@ -114,13 +109,13 @@ async function verifyPreviewGroup(window, frame, project) {
     'Complex editor groups no longer preserve their left-to-right order.');
 
   return {
-    initialParallel: true,
-    observedPreviewMs: 1000,
-    releasedWidth: Math.round(expandedWorkbench.width - beforeWorkbench.width),
+    initiallyCollapsed: true,
+    hoverOnly: true,
+    releasedWidth: Math.round(expandedWorkbench.width - restoredWorkbench.width),
     restored: true,
     savedTextPreserved: true,
     tabPreserved: true,
-    focusIndependent: true,
+    focusedExitCollapsed: true,
     complexGroups: complexAfter.length,
   };
 }

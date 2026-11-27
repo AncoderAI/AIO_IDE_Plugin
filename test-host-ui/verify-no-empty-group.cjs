@@ -49,7 +49,7 @@ async function workbenchWindow(app) {
     for (const page of app.windows().filter(window => !window.isClosed()).reverse()) {
       for (const frame of page.frames()) {
         if (await frame.evaluate(() => Boolean(window.__TAURI__ && document.querySelector('#root')?.innerText.trim())).catch(() => false)) {
-          return page;
+          return { window: page, surface: frame };
         }
       }
     }
@@ -122,14 +122,26 @@ async function main() {
   let app;
   try {
     app = await launch(_electron, code, profileArguments, project);
-    let window = await workbenchWindow(app);
+    let { window, surface } = await workbenchWindow(app);
     await assertOnlyAio(window);
+    await surface.locator('.aio-file-preview-edge').hover();
+    await waitFor(async () => {
+      const groups = await groupReport(window);
+      return groups.length === 2 && groups[0].width > 100;
+    }, 'button hover to create a preview on demand');
+    await surface.locator('.title-toolbar__identity').hover();
+    await waitFor(async () => {
+      const groups = await groupReport(window);
+      return groups.length === 1 || groups[0].width < 100;
+    }, 'AIO to reclaim the empty preview');
     await openFileBesideAio(window, filename);
+    await surface.locator('.aio-file-preview-edge').hover();
     await addEmptyLeftGroup(window, filename);
     await app.close();
 
     app = await launch(_electron, code, profileArguments, project);
-    window = await workbenchWindow(app);
+    ({ window, surface } = await workbenchWindow(app));
+    await surface.locator('.aio-file-preview-edge').hover();
     await waitFor(async () => {
       const report = await groupReport(window);
       return report.length === 2 && report.every(group => group.tabs.length > 0);

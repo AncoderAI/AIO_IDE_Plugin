@@ -42,6 +42,8 @@ function fixture() {
   }
   const panel = {
     active: true,
+    viewColumn: 2,
+    reveal() { actions.push('panel.reveal'); this.active = true },
     webview: { postMessage: async (message) => { messages.push(message); return true } },
     onDidChangeViewState: () => ({ dispose() {} }),
   }
@@ -51,6 +53,7 @@ function fixture() {
     getLayout() { return currentLayout },
     focusEditor(editor) {
       activeEditor = editor
+      panel.active = !editor
       for (const listener of editorListeners) listener(editor)
     },
     focusWindow(focused) {
@@ -62,7 +65,6 @@ function fixture() {
 
 async function managedController(setup) {
   const controller = new PreviewGroupController(setup.vscode, {}, {
-    initialVisibleMs: 15,
     collapseDelayMs: 0,
     hoverObserverFactory: () => setup.hover,
   })
@@ -72,10 +74,11 @@ async function managedController(setup) {
   return controller
 }
 
-test('preview starts visible, maximizes AIO, and the accessible trigger restores it', async () => {
+test('preview starts collapsed and only the hover trigger restores it', async () => {
   const setup = fixture()
   const controller = await managedController(setup)
-  await delay(30)
+  setup.hover.emit('state', 'inside')
+  await delay(15)
   await controller.queue
   assert.equal(controller.collapsed, true)
   assert.equal(setup.actions.at(-1), 'workbench.action.toggleMaximizeEditorGroup')
@@ -97,22 +100,28 @@ test('preview starts visible, maximizes AIO, and the accessible trigger restores
   assert.equal(setup.hover.disposed, true)
 })
 
-test('native hover, focused file editing, and background windows never collapse the preview', async () => {
+test('native preview hover keeps it open and leaving collapses it even while its editor is focused', async () => {
   const setup = fixture()
   const controller = await managedController(setup)
+  await delay(10)
+  await controller.queue
+  assert.equal(await controller.showFromTrigger(), true)
   setup.hover.emit('state', 'inside')
-  await delay(30)
+  await delay(10)
   await controller.queue
   assert.equal(controller.collapsed, false)
 
-  setup.hover.emit('state', 'outside')
   setup.focusEditor({ document: {} })
-  controller.aioPointerEntered()
+  setup.hover.emit('state', 'outside')
   await delay(10)
-  assert.equal(controller.collapsed, false)
+  await controller.queue
+  assert.equal(controller.collapsed, true)
+  assert.equal(setup.panel.active, true)
+  assert.equal(setup.actions.at(-2), 'panel.reveal')
 
+  assert.equal(await controller.showFromTrigger(), true)
   setup.focusWindow(false)
-  setup.focusEditor(undefined)
+  setup.hover.emit('state', 'outside')
   await delay(10)
   assert.equal(controller.collapsed, false)
   await controller.close()
@@ -132,7 +141,24 @@ test('a user-created third group abandons management and close never merges it',
   assert.equal(setup.actions.length, actionCount)
 })
 
-test('manual restore remains restored when closing AIO', async () => {
+test('attach accepts a cleaned two-group layout after a stale multi-group baseline and is idempotent', async () => {
+  const setup = fixture()
+  const controller = new PreviewGroupController(setup.vscode, {}, {
+    collapseDelayMs: 0,
+    hoverObserverFactory: () => setup.hover,
+  })
+  setup.setLayout({ orientation: 0, groups: [{}, {}, {}] })
+  await controller.captureBaseline()
+  setup.setLayout(expanded)
+  assert.equal(await controller.attach(setup.panel), true)
+  assert.equal(await controller.attach(setup.panel), true)
+  await delay(10)
+  await controller.queue
+  assert.equal(controller.collapsed, true)
+  await controller.close()
+})
+
+test('focused editors do not reveal a collapsed preview', async () => {
   const setup = fixture()
   const controller = await managedController(setup)
   await delay(30)
@@ -140,11 +166,11 @@ test('manual restore remains restored when closing AIO', async () => {
   assert.equal(controller.collapsed, true)
   const editor = { document: {} }
   setup.vscode.window.visibleTextEditors = [editor]
-  const toggles = setup.actions.filter((action) => action === 'workbench.action.toggleMaximizeEditorGroup').length
   setup.focusEditor(editor)
   await controller.queue
-  assert.equal(controller.collapsed, false)
-  assert.equal(setup.actions.filter((action) => action === 'workbench.action.toggleMaximizeEditorGroup').length, toggles)
+  assert.equal(controller.collapsed, true)
+  assert.equal(setup.actions.at(-2), 'panel.reveal')
+  const toggles = setup.actions.filter((action) => action === 'workbench.action.toggleMaximizeEditorGroup').length
   await controller.close()
   assert.equal(setup.actions.filter((action) => action === 'workbench.action.toggleMaximizeEditorGroup').length, toggles)
 })

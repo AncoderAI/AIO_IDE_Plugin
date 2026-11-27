@@ -476,6 +476,9 @@ class WorkbenchHost {
       if (this.panel !== panel) return
       await this.ensureHorizontalGroups(layout, groups)
       const column = panel.viewColumn
+      if (count === 2 && column === count && this.previewReadyPanels.has(panel) && !this.previewGroup.managed && !this.previewGroup.abandoned) {
+        await this.previewGroup.attach(panel)
+      }
       if (!column || column >= count || this.panel !== panel) return
       const focused = tabs.activeTabGroup.viewColumn
       panel.reveal(column)
@@ -577,6 +580,18 @@ class WorkbenchHost {
     }
   }
 
+  async revealFilePreview(panel) {
+    const tabs = this.vscode.window.tabGroups
+    if (tabs?.all.length === 1) {
+      panel.reveal(panel.viewColumn)
+      await this.vscode.commands.executeCommand('workbench.action.newGroupLeft')
+      if (this.panel !== panel) return
+      panel.reveal()
+    }
+    if (!this.previewGroup.managed) await this.previewGroup.attach(panel)
+    if (this.panel === panel) await this.previewGroup.showFromTrigger()
+  }
+
   async handleMessage(message, panel = this.panel, service = this.service) {
     if (!panel || !service || this.panel !== panel || this.service !== service) return
     if (message?.type === 'aio:file-preview-ready') {
@@ -586,7 +601,10 @@ class WorkbenchHost {
       return
     }
     if (message?.type === 'aio:file-preview-group' && message.action === 'show') {
-      await this.previewGroup.showFromTrigger()
+      if (!this.previewOpening) {
+        this.previewOpening = this.revealFilePreview(panel).finally(() => { this.previewOpening = undefined })
+      }
+      await this.previewOpening
       return
     }
     if (message?.type === 'aio:file-preview-group' && message.action === 'aio-enter') {
