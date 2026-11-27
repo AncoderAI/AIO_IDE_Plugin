@@ -32,6 +32,19 @@ Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manag
 4. Drop a folder onto the project list to add it. Click its name to switch the current VS Code folder, or click a CLI name under the project to load its history. Click a session to resume it.
 5. In a workbench terminal, use `Ctrl+C` to copy selected text and `Ctrl+V` or right-click to paste. Change the language under **Settings → Appearance → Interface language**. VS Code menus follow the VS Code display language.
 
+<details>
+<summary>Windows extension smoke tests</summary>
+
+Run these from the repository root with the extension sources and dependencies available. The test runner uses temporary user-data, extensions, and workspace directories. The default test launches local CLI fixtures, checks public commands and the workbench, and closes the test terminals. The optional `--installed` test requires `omp.exe`, `claude.exe`, and `codex.exe` on `PATH`. It verifies that all three processes can run together without sending prompts, then waits for VS Code's terminal-close events.
+
+```powershell
+$env:VSCODE_EXECUTABLE_PATH = 'C:\Path\To\Microsoft VS Code\bin\code.cmd'
+node test-host/run-smoke.cjs
+node test-host/run-smoke.cjs --installed
+```
+
+</details>
+
 ## 功能说明
 
 **为什么大型软件项目仍需要随时看代码？**
@@ -61,3 +74,16 @@ AIO 与 T3 Code、Orca、Paseo、Herdr、Cindy 都能编排和管理终端中的
 3. 悬停 **文件预览** 按钮展开左侧文件区。移入后可查看或编辑，移出后 AIO 收回空间。将资源管理器中的文件或文件夹拖入对话框或终端即可插入路径。也可使用 **资源管理器 → AIO** 或资源管理器右键菜单。
 4. 将文件夹拖到项目列表即可添加。点击项目名切换当前 VS Code 文件夹，点击项目下的 CLI 名称加载历史，点击会话继续。
 5. 在工作台终端中，按 `Ctrl+C` 复制选区，按 `Ctrl+V` 或单击右键粘贴。在 **设置 → 外观 → 界面语言** 中切换语言。VS Code 菜单跟随 VS Code 的显示语言。
+
+<details>
+<summary>Windows 扩展冒烟测试</summary>
+
+在仓库根目录准备好扩展源码和依赖后运行。脚本使用临时的用户数据、扩展和工作区目录。默认测试用本地 CLI 测试程序验证公开命令和工作台，并关闭测试终端。可选的 `--installed` 测试要求 `PATH` 中有 `omp.exe`、`claude.exe` 和 `codex.exe`。它会验证三个进程能同时运行，不会发送提示词，并等待 VS Code 的终端关闭事件。
+
+```powershell
+$env:VSCODE_EXECUTABLE_PATH = 'C:\Path\To\Microsoft VS Code\bin\code.cmd'
+node test-host/run-smoke.cjs
+node test-host/run-smoke.cjs --installed
+```
+
+</details>

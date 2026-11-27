@@ -27,4 +27,4 @@
 | 模型目录、活动记录、基础 Git 操作 | 工作台对应页面 | 复用上游服务。未逐项进行真实账号和 Git 写操作验收 |
 | 工作台宿主管理 | 编辑器标签页 | 自动测试覆盖并发打开和旧请求回调隔离；按工作区存储资料 |
 
-运行 `npm test` 可复查启动器、桥接和内嵌终端。将环境变量 `VSCODE_EXECUTABLE_PATH` 设为桌面版 `Code.exe` 的绝对路径后，可运行 `node test-host-ui/verify-workbench.cjs dist/aio-ide.vsix` 复查安装包和真实界面。该脚本从上游开发环境加载 Playwright。三 CLI 的集成终端验收见 `test-host/README.md`。
+运行 `npm test` 可复查启动器、桥接和内嵌终端。将环境变量 `VSCODE_EXECUTABLE_PATH` 设为桌面版 `Code.exe` 的绝对路径后，可运行 `node test-host-ui/verify-workbench.cjs dist/aio-ide.vsix` 复查安装包和真实界面。该脚本从上游开发环境加载 Playwright。三 CLI 的集成终端验收见 [README 的 Windows 扩展冒烟测试](README.md#操作说明)。
