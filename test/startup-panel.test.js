@@ -84,6 +84,7 @@ test('workbench renders and handles messages before project synchronization comp
   const contextMock = {
     extensionPath,
     storageUri: { fsPath: profileRoot },
+    globalStorageUri: { fsPath: path.join(profileRoot, 'global') },
     asAbsolutePath: (value) => path.join(extensionPath, value),
     extension: { packageJSON: { version: 'test' } },
   }
@@ -99,7 +100,11 @@ test('workbench renders and handles messages before project synchronization comp
     },
     service: {
       resolveNodeRuntime: () => runtime,
-      spawn: createServiceChild,
+      spawn: (executable, args, options) => {
+        assert.equal(args[1], path.join(profileRoot, 'workbench'))
+        assert.equal(options.env.AIO_PLUGIN_STORAGE, path.join(profileRoot, 'global', 'coding-agents'))
+        return createServiceChild()
+      },
     },
   })
   host.createWorkbenchPanel = async () => panel

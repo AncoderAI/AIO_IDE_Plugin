@@ -403,6 +403,109 @@ async function buildService() {
       setup(build) {
         build.onLoad({ filter: /research[\\/]tauri-spike[\\/]workbench-service\.ts$/ }, (args) => {
           let source = readFileSync(args.path, 'utf8')
+          const contextAnchor = 'async function createContext(appDataPath: string, resourceRoot: string, smoke: boolean, liveCli: boolean): Promise<ServiceContext> {'
+          const sharedPluginStorage = String.raw`async function migrateSharedCodingPluginStorage(appDataPath: string): Promise<string> {
+  const configured = process.env.AIO_PLUGIN_STORAGE
+  if (configured && !isAbsolute(configured)) throw new TypeError('AIO_PLUGIN_STORAGE must be an absolute path')
+  const targetRoot = configured ? resolve(configured) : appDataPath
+  const target = resolve(targetRoot, 'coding-cli-plugins.json')
+  if (!configured) return target
+
+  const fs = await import('node:fs/promises')
+  const paths = await import('node:path')
+  await fs.mkdir(targetRoot, { recursive: true })
+  const lock = target + '.lock'
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await fs.writeFile(lock, JSON.stringify({ pid: process.pid, createdAt: Date.now() }), { flag: 'wx', mode: 0o600 })
+      break
+    }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt >= 1600) throw error
+      const info = await fs.stat(lock).catch(() => undefined)
+      let deadOwner = false
+      let ownerKnown = false
+      try {
+        const owner = JSON.parse(await fs.readFile(lock, 'utf8'))
+        if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+          ownerKnown = true
+          try { process.kill(owner.pid, 0) } catch (probe) { deadOwner = (probe as NodeJS.ErrnoException).code === 'ESRCH' }
+        }
+      } catch { /* legacy directory lock or incomplete owner data */ }
+      if (info && (deadOwner || (!ownerKnown && Date.now() - info.mtimeMs > 30_000))) {
+        await fs.unlink(lock).catch(() => fs.rmdir(lock).catch(() => undefined))
+      }
+      await new Promise((done) => setTimeout(done, 25))
+    }
+  }
+  try {
+    if ((await fs.stat(target).catch(() => undefined))?.isFile()) return target
+    const userRoot = paths.dirname(paths.dirname(paths.dirname(targetRoot)))
+    const workspaceStorage = paths.resolve(userRoot, 'workspaceStorage')
+    const roots = new Set<string>([appDataPath, paths.resolve(paths.dirname(targetRoot), 'workbench')])
+    for (const entry of await fs.readdir(workspaceStorage, { withFileTypes: true }).catch(() => [])) {
+      if (entry.isDirectory()) roots.add(paths.resolve(workspaceStorage, entry.name, 'ancoder.aio-ide', 'workbench'))
+    }
+    type Candidate = { mtimeMs: number; state: { installed: boolean; enabled: boolean; executablePath?: string }; manifest?: string }
+    const selected = new Map<string, Candidate>()
+    for (const root of roots) {
+      const statePath = paths.resolve(root, 'coding-cli-plugins.json')
+      try {
+        const info = await fs.stat(statePath)
+        if (!info.isFile() || info.size > 64 * 1024) continue
+        const state = JSON.parse(await fs.readFile(statePath, 'utf8'))
+        if (state?.version !== 1 || !state.plugins || typeof state.plugins !== 'object') continue
+        for (const id of ['omp', 'claude', 'codex']) {
+          const row = state.plugins[id]
+          if (!row || typeof row.installed !== 'boolean' || typeof row.enabled !== 'boolean') continue
+          const current = selected.get(id)
+          if (current && current.mtimeMs > info.mtimeMs) continue
+          let manifest: string | undefined
+          if (row.installed) {
+            const filename = paths.resolve(root, 'coding-cli-plugins', id, 'manifest.json')
+            const manifestInfo = await fs.stat(filename).catch(() => undefined)
+            if (!manifestInfo?.isFile() || manifestInfo.size > 64 * 1024) continue
+            manifest = await fs.readFile(filename, 'utf8')
+            const parsed = JSON.parse(manifest)
+            if (parsed?.id !== id || parsed?.adapter !== id || parsed?.kind !== 'coding-cli') continue
+          }
+          selected.set(id, {
+            mtimeMs: info.mtimeMs,
+            state: {
+              installed: row.installed,
+              enabled: row.installed && row.enabled,
+              ...(typeof row.executablePath === 'string' && row.executablePath.length <= 4096 ? { executablePath: row.executablePath } : {}),
+            },
+            manifest,
+          })
+        }
+      } catch { /* malformed and inaccessible legacy profiles are ignored */ }
+    }
+    if (!selected.size) return target
+    const plugins = Object.fromEntries([...selected].map(([id, candidate]) => [id, candidate.state]))
+    for (const [id, candidate] of selected) {
+      if (!candidate.manifest) continue
+      const directory = paths.resolve(targetRoot, 'coding-cli-plugins', id)
+      await fs.mkdir(directory, { recursive: true, mode: 0o700 })
+      await fs.writeFile(paths.resolve(directory, 'manifest.json'), candidate.manifest, { mode: 0o600 })
+    }
+    const temporary = target + '.' + randomUUID() + '.tmp'
+    await fs.writeFile(temporary, JSON.stringify({ version: 1, plugins }), { flag: 'wx', mode: 0o600, flush: true })
+    await fs.rename(temporary, target)
+    return target
+  } finally {
+    await fs.unlink(lock).catch(() => fs.rmdir(lock).catch(() => undefined))
+  }
+}
+
+`
+          if (!source.includes(contextAnchor)) throw new Error('AIO shared coding plugin context anchor changed')
+          source = source.replace(contextAnchor, sharedPluginStorage + contextAnchor)
+
+          const registryAnchor = /  const codingPlugins = new CodingCliPluginRegistry\(\r?\n    resolve\(appDataPath, 'coding-cli-plugins\.json'\),/
+          const sharedRegistry = "  const codingPluginStatePath = await migrateSharedCodingPluginStorage(appDataPath)\n  const codingPlugins = new CodingCliPluginRegistry(\n    codingPluginStatePath,"
+          if (!registryAnchor.test(source)) throw new Error('AIO shared coding plugin registry anchor changed')
+          source = source.replace(registryAnchor, sharedRegistry)
           const codexState = "codex: { ready: ['Ask Codex to do anything', 'esc to edit previous message'], busy: ['esc to interrupt'] }"
           const currentCodexState = "codex: { ready: ['Ask Codex', 'Worked for ', 'esc to edit previous message'], busy: ['Working(', 'esc to interrupt'] }"
           if (!source.includes(codexState)) throw new Error('AIO Bot Codex editor state anchor changed')
@@ -492,6 +595,83 @@ ${resolver}`
           const configuredFinalReturn = 'return configureCodexEditor(context, { executable, args: terminalInteractiveArgs(agent, []), label, agent, bracketedPasteExpected: true, editorReadyTexts: terminalEditorState[agent]?.ready, editorBusyTexts: terminalEditorState[agent]?.busy })'
           if (!source.includes(finalReturn)) throw new Error('AIO Codex fresh terminal editor anchor changed')
           source = source.replace(finalReturn, configuredFinalReturn)
+          return { contents: source, loader: 'ts' }
+        })
+        build.onLoad({ filter: /research[\\/]tauri-spike[\\/]cli-plugins[\\/]registry\.ts$/ }, (args) => {
+          let source = readFileSync(args.path, 'utf8').replaceAll('\r\n', '\n')
+          const serialAnchor = `  private serial<T>(task: () => Promise<T>): Promise<T> {
+    const operation = this.queue.then(async () => {
+      if (!this.loaded) await this.load()
+      return task()
+    })
+    this.queue = operation.then(() => undefined, () => undefined)
+    return operation
+  }`
+          const lockedSerial = `  private async acquireStateLock(): Promise<() => Promise<void>> {
+    await mkdir(dirname(this.statePath), { recursive: true, mode: 0o700 })
+    const lock = this.statePath + '.lock'
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await writeFile(lock, JSON.stringify({ pid: process.pid, createdAt: Date.now() }), { flag: 'wx', mode: 0o600 })
+        return () => unlink(lock).catch(() => rmdir(lock).catch(() => undefined))
+      }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt >= 1600) throw error
+        const info = await lstat(lock).catch(() => undefined)
+        let deadOwner = false
+        let ownerKnown = false
+        try {
+          const owner = JSON.parse(await readFile(lock, 'utf8'))
+          if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+            ownerKnown = true
+            try { process.kill(owner.pid, 0) } catch (probe) { deadOwner = (probe as NodeJS.ErrnoException).code === 'ESRCH' }
+          }
+        } catch { /* legacy directory lock or incomplete owner data */ }
+        if (info && (deadOwner || (!ownerKnown && Date.now() - info.mtimeMs > 30_000))) {
+          await unlink(lock).catch(() => rmdir(lock).catch(() => undefined))
+        }
+        await new Promise((done) => setTimeout(done, 25))
+      }
+    }
+  }
+
+  private serial<T>(task: () => Promise<T>, mutate = false): Promise<T> {
+    const operation = this.queue.then(async () => {
+      if (!mutate) {
+        // Atomic writers do not require readers to take the cross-process lock.
+        // Reloading here lets every open VS Code window see changes immediately.
+        this.state = emptyState()
+        this.stateExists = false
+        this.loaded = false
+        await this.load()
+        return task()
+      }
+      const release = await this.acquireStateLock()
+      try {
+        // Every process reloads while holding the cross-process lock, so a
+        // provider change cannot overwrite a newer update from another window.
+        this.state = emptyState()
+        this.stateExists = false
+        this.loaded = false
+        await this.load()
+        return await task()
+      } finally { await release() }
+    })
+    this.queue = operation.then(() => undefined, () => undefined)
+    return operation
+  }`
+          if (!source.includes(serialAnchor)) throw new Error('AIO coding plugin registry serialization anchor changed')
+          source = source.replace(serialAnchor, lockedSerial)
+          for (const method of ['initialize', 'setExecutable', 'set']) {
+            const start = source.indexOf('  async ' + method + '(')
+            if (start < 0) throw new Error('AIO coding plugin mutation anchor changed: ' + method)
+            const serial = source.indexOf('return this.serial(async () => {', start)
+            if (serial < 0) throw new Error('AIO coding plugin serialization call changed: ' + method)
+            source = source.slice(0, serial) + source.slice(serial).replace('return this.serial(async () => {', 'return this.serial(async () => {', 1)
+            const close = source.indexOf('\n    })', serial)
+            if (close < 0) throw new Error('AIO coding plugin mutation close changed: ' + method)
+            source = source.slice(0, close) + '\n    }, true)' + source.slice(close + '\n    })'.length)
+          }
           return { contents: source, loader: 'ts' }
         })
         build.onLoad({ filter: /electron[\\/]main[\\/]terminal\.ts$/ }, (args) => {

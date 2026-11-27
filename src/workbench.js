@@ -101,6 +101,8 @@ class WorkbenchService extends EventEmitter {
     const environment = { ...process.env, AIO_VERSION: this.options.version }
     delete environment.NODE_OPTIONS
     delete environment.NODE_PATH
+    if (this.options.pluginStoragePath) environment.AIO_PLUGIN_STORAGE = this.options.pluginStoragePath
+    else delete environment.AIO_PLUGIN_STORAGE
     if (runtime.runAsNode) environment.ELECTRON_RUN_AS_NODE = '1'
     this.child = (this.options.spawn || spawn)(runtime.executable, [
       this.options.servicePath,
@@ -544,6 +546,7 @@ class WorkbenchHost {
       service = new WorkbenchService({
         version: this.context.extension?.packageJSON?.version || 'development',
         profilePath,
+        pluginStoragePath: path.join((this.context.globalStorageUri || storageUri).fsPath, 'coding-agents'),
         resourceRoot: serviceRoot,
         servicePath,
         log: this.log,

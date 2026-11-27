@@ -28,7 +28,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/terminal-context.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/terminal-context.ts
 function splitTerminalContextBlock(text) {
   const currentBegin = text.indexOf(TERMINAL_CONTEXT_BEGIN);
   const legacyBegin = text.indexOf(LEGACY_TERMINAL_CONTEXT_BEGIN);
@@ -46,7 +46,7 @@ function splitTerminalContextBlock(text) {
 }
 var TERMINAL_CONTEXT_BEGIN, TERMINAL_CONTEXT_END, LEGACY_TERMINAL_CONTEXT_BEGIN, LEGACY_TERMINAL_CONTEXT_END, TERMINAL_CONTEXT_MAX_CHARS, TERMINAL_SELECTION_MAX_CHARS;
 var init_terminal_context = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/terminal-context.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/terminal-context.ts"() {
     TERMINAL_CONTEXT_BEGIN = "===== BEGIN TERMINAL SELECTION CONTEXT =====";
     TERMINAL_CONTEXT_END = "===== END TERMINAL SELECTION CONTEXT =====";
     LEGACY_TERMINAL_CONTEXT_BEGIN = "===== BEGIN ACTIVE TERMINAL CONTEXT =====";
@@ -56,7 +56,7 @@ var init_terminal_context = __esm({
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/coding-task-summary.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/coding-task-summary.ts
 function summarizeCodingTask(value) {
   const characters = [];
   let pendingSpace = false;
@@ -86,13 +86,13 @@ function summarizeCodingTask(value) {
 }
 var CODING_TASK_SUMMARY_MAX_CHARS;
 var init_coding_task_summary = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/coding-task-summary.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/coding-task-summary.ts"() {
     init_terminal_context();
     CODING_TASK_SUMMARY_MAX_CHARS = 140;
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/validation.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/validation.ts
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -155,13 +155,13 @@ function stripAnsi(input) {
 }
 var import_promises2, import_node_path4;
 var init_validation = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/validation.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/validation.ts"() {
     import_promises2 = require("node:fs/promises");
     import_node_path4 = require("node:path");
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/lib/async.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/lib/async.ts
 function comparePaths(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -259,11 +259,11 @@ function createAdmissionQueue(options) {
   };
 }
 var init_async = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/lib/async.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/lib/async.ts"() {
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/process-utils.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/process-utils.ts
 function runWindowsTaskkill(pid) {
   return new Promise((resolveKill) => {
     let child;
@@ -703,7 +703,7 @@ function runProcess(file, args, options = {}) {
 }
 var import_node_fs, import_promises3, import_node_path5, import_node_child_process2, import_node_os2, PROCESS_CONCURRENCY_LIMIT, PROCESS_QUEUE_LIMIT, PROCESS_INPUT_LIMIT, activeChildren, processAdmission, processAdmissionClosed, delay;
 var init_process_utils = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/process-utils.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/process-utils.ts"() {
     import_node_fs = require("node:fs");
     import_promises3 = require("node:fs/promises");
     import_node_path5 = require("node:path");
@@ -728,7 +728,7 @@ var init_process_utils = __esm({
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/codex.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/codex.ts
 var codex_exports = {};
 __export(codex_exports, {
   CodexAdapterError: () => CodexAdapterError,
@@ -965,7 +965,7 @@ async function killWindowsTree(pid) {
 }
 var import_node_child_process3, import_promises11, import_node_path13, import_node_string_decoder2, CodexAdapterError, MAX_PROMPT_BYTES, MAX_STDOUT_BYTES, MAX_FRAME_BYTES, MAX_STDERR_CHARS, STARTUP_TIMEOUT_MS, REQUEST_TIMEOUT_MS, TURN_TIMEOUT_MS, HOT_RUNTIME_IDLE_MS, MAX_HOT_RUNTIMES, CodexRpcClient;
 var init_codex = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/codex.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/codex.ts"() {
     import_node_child_process3 = require("node:child_process");
     import_promises11 = require("node:fs/promises");
     import_node_path13 = require("node:path");
@@ -1339,7 +1339,7 @@ var init_codex = __esm({
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/claude.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/claude.ts
 var claude_exports = {};
 __export(claude_exports, {
   createClaudeRunner: () => createClaudeRunner,
@@ -1546,7 +1546,7 @@ async function runClaude(turn) {
 }
 var import_node_child_process4, import_node_crypto2, import_promises12, import_node_os5, import_node_path14, import_node_string_decoder3, MAX_PROMPT_BYTES2, MAX_STDOUT_BYTES2, MAX_STDERR_BYTES, MAX_LINE_BYTES, MAX_CONNECTIONS, IDLE_TTL_MS, TURN_TIMEOUT_MS2, NATIVE_ID_PATTERN, ClaudeText, ClaudeConnection;
 var init_claude = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/claude.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/claude.ts"() {
     import_node_child_process4 = require("node:child_process");
     import_node_crypto2 = require("node:crypto");
     import_promises12 = require("node:fs/promises");
@@ -1815,7 +1815,7 @@ var init_claude = __esm({
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/session-paths.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/session-paths.ts
 function canonicalSessionPath(pathValue) {
   const resolved = (0, import_node_path21.resolve)(pathValue);
   const cached2 = canonicalCache.get(resolved);
@@ -1836,7 +1836,7 @@ function canonicalSessionPath(pathValue) {
 }
 var import_node_fs11, import_node_path21, canonicalCache, MAX_CANONICAL_CACHE;
 var init_session_paths = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/session-paths.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/session-paths.ts"() {
     import_node_fs11 = require("node:fs");
     import_node_path21 = require("node:path");
     canonicalCache = /* @__PURE__ */ new Map();
@@ -1844,7 +1844,7 @@ var init_session_paths = __esm({
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/terminal.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/terminal.ts
 var terminal_exports = {};
 __export(terminal_exports, {
   TerminalService: () => TerminalService,
@@ -1938,7 +1938,7 @@ function taskInputText(data) {
 }
 var import_node_fs12, import_node_path22, import_node_child_process7, import_node_util3, import_node_crypto9, pty, MAX_TERMINAL_OUTPUT_BYTES_PER_SECOND, MAX_TOTAL_TERMINAL_OUTPUT_BYTES_PER_SECOND, MAX_TERMINAL_IPC_CHUNK_BYTES, MAX_TERMINAL_CONTEXT_CHARS, BRACKETED_PASTE_ON, BRACKETED_PASTE_OFF, WINDOWS_COMMAND_LINE_LIMIT, execFileAsync2, TerminalService;
 var init_terminal = __esm({
-  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/terminal.ts"() {
+  "C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/terminal.ts"() {
     import_node_fs12 = require("node:fs");
     import_node_path22 = require("node:path");
     import_node_child_process7 = require("node:child_process");
@@ -2416,23 +2416,23 @@ ${error instanceof Error ? error.message : String(error)}\r
   }
 });
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/workbench-service.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/workbench-service.ts
 var import_node_crypto10 = require("node:crypto");
 var import_node_readline = require("node:readline");
 var import_promises18 = require("node:fs/promises");
 var import_node_path23 = require("node:path");
 var import_node_os7 = require("node:os");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/workspace.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/workspace.ts
 var MAX_OPEN_PROJECTS = 20;
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/coding-cli-processes.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/coding-cli-processes.ts
 var import_node_child_process = require("node:child_process");
 var import_node_path2 = require("node:path");
 var import_node_util = require("node:util");
 init_coding_task_summary();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/cli-session-titles.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/cli-session-titles.ts
 var import_promises = require("node:fs/promises");
 var import_node_os = require("node:os");
 var import_node_path = require("node:path");
@@ -2505,7 +2505,7 @@ async function discoverNativeTaskTitles(processes) {
   return new Map(entries.filter((entry) => entry !== void 0));
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/coding-cli-processes.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/coding-cli-processes.ts
 var execFileAsync = (0, import_node_util.promisify)(import_node_child_process.execFile);
 var NATIVE_EXECUTABLES = /* @__PURE__ */ new Map([["omp", "omp"], ["claude", "claude"], ["codex", "codex"]]);
 var SCRIPT_ENTRYPOINTS = [
@@ -2751,7 +2751,7 @@ async function listCodingCliProcesses(tasks = /* @__PURE__ */ new Map()) {
   return associateCodingTasks(await activeScan, tasks);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/harness.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/harness.ts
 var import_node_path3 = require("node:path");
 var HARNESSES = {
   omp: {
@@ -2770,7 +2770,7 @@ var HARNESSES = {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/harness-adapter.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/harness-adapter.ts
 init_validation();
 function parseContextUsage(raw) {
   if (!isRecord(raw) || !Number.isSafeInteger(raw.contextWindow) || Number(raw.contextWindow) <= 0) return null;
@@ -2852,12 +2852,12 @@ var OMP_RPC_ADAPTER = {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/types/api.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/types/api.ts
 var HARNESS_IDS = ["omp"];
 var PRIME_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 var INTERFACE_FONT_SCALES = [105, 110, 115];
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/harness-discovery.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/harness-discovery.ts
 init_process_utils();
 function hasControlCharacter(value) {
   return [...value].some((character) => {
@@ -2919,7 +2919,7 @@ var HarnessDiscoveryService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/git.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/git.ts
 var import_node_fs2 = require("node:fs");
 var import_promises4 = require("node:fs/promises");
 var import_node_path6 = require("node:path");
@@ -24053,7 +24053,7 @@ function supportsFastMode(model) {
   return model.provider === "openai-codex" && model.api === "openai-codex-responses" && (model.id === "gpt-5.4" || model.id === "gpt-5.5" || model.id === "gpt-5.6" || model.id.startsWith("gpt-5.6-"));
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/model-catalog.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/model-catalog.ts
 var MAX_CATALOG_MODELS = 5e3;
 var MAX_CATALOG_PROVIDERS = 256;
 function limitCatalogRelations(rawModels, rawProviders) {
@@ -24109,7 +24109,7 @@ function catalogLimitWarnings(harnessLabel, result, options = {}) {
   return warnings;
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/logging.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/logging.ts
 var MAX_MESSAGE_BYTES = 2 * 1024;
 var MAX_DETAIL_BYTES = 4 * 1024;
 var ROTATE_BYTES = 2 * 1024 * 1024;
@@ -24121,7 +24121,7 @@ var noopLogger = {
   child: () => noopLogger
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/model-visibility.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/model-visibility.ts
 function withModelVisibility(catalog, disabledProviders, disabledModels) {
   const modelKeysByProvider = /* @__PURE__ */ new Map();
   for (const model of catalog.models) {
@@ -24144,7 +24144,7 @@ function withModelVisibility(catalog, disabledProviders, disabledModels) {
   };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/model-catalog-cli.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/model-catalog-cli.ts
 init_process_utils();
 init_validation();
 var CATALOG_TTL_MS = 3e4;
@@ -24348,7 +24348,7 @@ var CliModelCatalogService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/providers-omp.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/providers-omp.ts
 init_process_utils();
 var OMP_NOT_INSTALLED_WARNING = "OMP is not installed. Install the omp CLI to load its model catalog.";
 function toThinkingLevels(reasoning, thinking) {
@@ -24394,7 +24394,7 @@ var OmpModelCatalogService = class extends CliModelCatalogService {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions.ts
 var import_node_fs5 = require("node:fs");
 var import_promises8 = require("node:fs/promises");
 var import_node_os3 = require("node:os");
@@ -24402,32 +24402,32 @@ var import_node_path9 = require("node:path");
 init_async();
 init_process_utils();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/catalog.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/catalog.ts
 var import_promises7 = require("node:fs/promises");
 var import_node_path8 = require("node:path");
 init_async();
 init_process_utils();
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/metadata.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/metadata.ts
 var import_node_fs4 = require("node:fs");
 var import_promises6 = require("node:fs/promises");
 var import_node_path7 = require("node:path");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/jsonl-limits.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/jsonl-limits.ts
 var SESSION_FILE_RECORD_LIMIT_BYTES = 64 * 1024 * 1024;
 var RPC_READ_FRAME_LIMIT_BYTES = 16 * 1024 * 1024;
 var RPC_WRITE_FRAME_LIMIT_BYTES = 2 * 1024 * 1024;
 var DAEMON_FRAME_LIMIT_BYTES = 1024 * 1024;
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/metadata.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/metadata.ts
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/transcript.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/transcript.ts
 var import_node_fs3 = require("node:fs");
 var import_promises5 = require("node:fs/promises");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/jsonl.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/jsonl.ts
 var import_node_string_decoder = require("node:string_decoder");
 var MAX_UNFRAMED_BYTES = SESSION_FILE_RECORD_LIMIT_BYTES;
 var FragmentedLineBuffer = class {
@@ -24506,7 +24506,7 @@ var StrictJsonlDecoder = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/transcript.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/transcript.ts
 init_validation();
 var MAX_TRANSCRIPT_GRAPH_BYTES = 16 * 1024 * 1024;
 var MAX_TRANSCRIPT_GRAPH_RECORDS = 1e4;
@@ -24891,7 +24891,7 @@ async function readTranscriptWithDialect(dialect, filePath, isStreaming) {
 }
 var readTranscript = createTranscriptReader();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/metadata.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/metadata.ts
 var MAX_SESSION_FILE_BYTES = 256 * 1024 * 1024;
 var MAX_METADATA_RECORDS = 2e5;
 var MAX_METADATA_RECORD_BYTES = SESSION_FILE_RECORD_LIMIT_BYTES;
@@ -25166,7 +25166,7 @@ function createSessionMetadataReader(io = nodeMetadataReaderIo) {
   return createIncrementalMetadataReader(primeMetadataParser, io);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/catalog.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/catalog.ts
 var LIVE_CATALOG_TTL_MS = 2e3;
 var LIVE_CATALOG_MIN_SPAWN_INTERVAL_MS = 2e3;
 var FULL_SCAN = { kind: "full-scan" };
@@ -25611,7 +25611,7 @@ var SessionMetadataCatalog = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions.ts
 init_validation();
 var MAX_SESSION_FILES = 5e3;
 var MAX_SESSION_WATCH_DIRECTORIES = 512;
@@ -25990,22 +25990,22 @@ var SessionService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/omp.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/omp.ts
 var import_node_fs6 = require("node:fs");
 var import_node_os4 = require("node:os");
 var import_node_path11 = require("node:path");
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/bucketed.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/bucketed.ts
 var import_promises9 = require("node:fs/promises");
 var import_node_path10 = require("node:path");
 init_async();
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/transcript-fallbacks.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/transcript-fallbacks.ts
 var DISCARDED_RETRY_FALLBACK = "The model discarded a failed attempt before finishing this turn.";
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/bucketed.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/bucketed.ts
 var MAX_BUCKET_DIRECTORIES = 4096;
 var MAX_BUCKET_CONCURRENCY = 8;
 var BUCKETED_SESSION_FILE_NAME = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_[0-9a-f][0-9a-f-]*\.jsonl$/i;
@@ -26131,7 +26131,7 @@ function createBranchSummaryTranscriptReader() {
   });
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/sessions/omp.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/sessions/omp.ts
 var OMP_TITLE_SLOT_BYTES = 256;
 function ompSessionRoot() {
   return (0, import_node_path11.join)((0, import_node_os4.homedir)(), ".omp", "agent", "sessions");
@@ -26228,7 +26228,7 @@ function ompSessionServiceOptions(sessionRoot = ompSessionRoot()) {
   };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/store.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/store.ts
 var import_node_crypto = require("node:crypto");
 var import_node_fs7 = require("node:fs");
 var import_promises10 = require("node:fs/promises");
@@ -26954,10 +26954,10 @@ async function openDesktopStateStore(userDataPath, logger = noopLogger) {
   return store;
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/workbench-service.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/workbench-service.ts
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/service.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/service.ts
 var import_node_crypto3 = require("node:crypto");
 var import_node_fs8 = require("node:fs");
 var import_promises13 = require("node:fs/promises");
@@ -27290,7 +27290,7 @@ var CodingCliService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/activity-history.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/activity-history.ts
 var import_promises14 = require("node:fs/promises");
 var import_node_path16 = require("node:path");
 init_validation();
@@ -27478,7 +27478,7 @@ var CodingActivityHistoryService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/launch-ledger.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/launch-ledger.ts
 var import_node_fs9 = require("node:fs");
 var import_node_path17 = require("node:path");
 var import_node_sqlite = require("node:sqlite");
@@ -27617,7 +27617,7 @@ var CodingCliLaunchLedger = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/windows-claude-discovery.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/windows-claude-discovery.ts
 var import_node_child_process5 = require("node:child_process");
 var import_promises15 = require("node:fs/promises");
 var import_node_path18 = require("node:path");
@@ -27802,13 +27802,13 @@ var WindowsClaudeDiscovery = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/cli-plugins/registry.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/cli-plugins/registry.ts
 var import_node_crypto4 = require("node:crypto");
 var import_node_fs10 = require("node:fs");
 var import_promises16 = require("node:fs/promises");
 var import_node_path19 = require("node:path");
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/cli-plugins/claude/manifest.json
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/cli-plugins/claude/manifest.json
 var manifest_default = {
   schemaVersion: 1,
   id: "claude",
@@ -27819,7 +27819,7 @@ var manifest_default = {
   minHostApi: 1
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/cli-plugins/codex/manifest.json
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/cli-plugins/codex/manifest.json
 var manifest_default2 = {
   schemaVersion: 1,
   id: "codex",
@@ -27830,7 +27830,7 @@ var manifest_default2 = {
   minHostApi: 1
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/cli-plugins/omp/manifest.json
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/cli-plugins/omp/manifest.json
 var manifest_default3 = {
   schemaVersion: 1,
   id: "omp",
@@ -27841,7 +27841,7 @@ var manifest_default3 = {
   minHostApi: 1
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/cli-plugins/registry.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/cli-plugins/registry.ts
 var HOST_API_VERSION = 1;
 var STATE_VERSION = 1;
 var MAX_STATE_BYTES = 64 * 1024;
@@ -27927,7 +27927,7 @@ var CodingCliPluginRegistry = class {
       this.state = draft;
       this.stateExists = true;
       return this.statuses();
-    });
+    }, true);
   }
   async list(refresh = false) {
     return this.serial(() => this.statuses(refresh));
@@ -27957,7 +27957,7 @@ var CodingCliPluginRegistry = class {
       this.state = draft;
       this.stateExists = true;
       return this.statuses(configuredPath === void 0);
-    });
+    }, true);
   }
   async set(idValue, actionValue) {
     const id = pluginId(idValue);
@@ -27975,7 +27975,7 @@ var CodingCliPluginRegistry = class {
       this.stateExists = true;
       if (action === "uninstall") await this.retirePackage(id);
       return this.statuses();
-    });
+    }, true);
   }
   async requireReady(idValue) {
     const id = pluginId(idValue);
@@ -28003,10 +28003,56 @@ var CodingCliPluginRegistry = class {
       this.loaded = true;
     }
   }
-  serial(task) {
+  async acquireStateLock() {
+    await (0, import_promises16.mkdir)((0, import_node_path19.dirname)(this.statePath), { recursive: true, mode: 448 });
+    const lock = this.statePath + ".lock";
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await (0, import_promises16.writeFile)(lock, JSON.stringify({ pid: process.pid, createdAt: Date.now() }), { flag: "wx", mode: 384 });
+        return () => (0, import_promises16.unlink)(lock).catch(() => (0, import_promises16.rmdir)(lock).catch(() => void 0));
+      } catch (error) {
+        if (error.code !== "EEXIST" || attempt >= 1600) throw error;
+        const info = await (0, import_promises16.lstat)(lock).catch(() => void 0);
+        let deadOwner = false;
+        let ownerKnown = false;
+        try {
+          const owner = JSON.parse(await (0, import_promises16.readFile)(lock, "utf8"));
+          if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+            ownerKnown = true;
+            try {
+              process.kill(owner.pid, 0);
+            } catch (probe) {
+              deadOwner = probe.code === "ESRCH";
+            }
+          }
+        } catch {
+        }
+        if (info && (deadOwner || !ownerKnown && Date.now() - info.mtimeMs > 3e4)) {
+          await (0, import_promises16.unlink)(lock).catch(() => (0, import_promises16.rmdir)(lock).catch(() => void 0));
+        }
+        await new Promise((done) => setTimeout(done, 25));
+      }
+    }
+  }
+  serial(task, mutate = false) {
     const operation = this.queue.then(async () => {
-      if (!this.loaded) await this.load();
-      return task();
+      if (!mutate) {
+        this.state = emptyState();
+        this.stateExists = false;
+        this.loaded = false;
+        await this.load();
+        return task();
+      }
+      const release = await this.acquireStateLock();
+      try {
+        this.state = emptyState();
+        this.stateExists = false;
+        this.loaded = false;
+        await this.load();
+        return await task();
+      } finally {
+        await release();
+      }
     });
     this.queue = operation.then(() => void 0, () => void 0);
     return operation;
@@ -28140,7 +28186,7 @@ var CodingCliPluginRegistry = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/headless-service.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/headless-service.ts
 var import_node_crypto5 = require("node:crypto");
 init_validation();
 var MAX_JOBS = 200;
@@ -28335,7 +28381,7 @@ var HeadlessService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/omp-metadata-cache.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/omp-metadata-cache.ts
 var import_node_crypto6 = require("node:crypto");
 var import_promises17 = require("node:fs/promises");
 init_validation();
@@ -28410,7 +28456,7 @@ function createOmpMetadataCache(file, source) {
   return { read, flush };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/omp-metadata-pool.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/omp-metadata-pool.ts
 var import_node_os6 = require("node:os");
 var import_node_path20 = require("node:path");
 var import_node_worker_threads = require("node:worker_threads");
@@ -28475,7 +28521,7 @@ function createOmpMetadataPool(fallback) {
   };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/terminal-restore.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/terminal-restore.ts
 function terminalInteractiveArgs(agent, args) {
   return agent === "codex" ? ["-c", "disable_paste_burst=true", ...args] : [...args];
 }
@@ -28500,10 +28546,10 @@ function reconcileTerminalRestores(input) {
   return [...entries.values()];
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/manager.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/manager.ts
 init_coding_task_summary();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/mcp-policy.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/mcp-policy.ts
 var NETWORK_MCP_AUTH_UNAVAILABLE = "Network MCP authentication is managed outside AIO. Use the harness directly; AIO does not inspect or change MCP credentials.";
 var UNSAFE_MCP_KEYS = /* @__PURE__ */ new Set(["__proto__", "prototype", "constructor"]);
 function parsedAuthenticationCommand(match) {
@@ -28520,7 +28566,7 @@ function assertNoMcpAuthenticationCommand(prompt, harness) {
   if (parseMcpAuthenticationCommand(prompt, harness)) throw new TypeError(NETWORK_MCP_AUTH_UNAVAILABLE);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/src/lib/session-actions.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/src/lib/session-actions.ts
 var MAX_QUEUED_ACTIONS = 128;
 var MAX_PREVIEW_LENGTH = 4096;
 function boundedPreview(value) {
@@ -28551,15 +28597,15 @@ function emptySessionActionSnapshot() {
   return { queuedCount: 0, steering: [], followUps: [] };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/manager.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/manager.ts
 init_process_utils();
 init_session_paths();
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/command-schema.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/command-schema.ts
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/limits.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/limits.ts
 var MAX_RPC_WRITE_FRAME_BYTES = RPC_WRITE_FRAME_LIMIT_BYTES;
 var RPC_REQUEST_ID_PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 function rpcRequestFrameBytes(command) {
@@ -28567,7 +28613,7 @@ function rpcRequestFrameBytes(command) {
 `, "utf8");
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/command-schema.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/command-schema.ts
 var SIMPLE_COMMANDS = /* @__PURE__ */ new Set([
   "abort",
   "new_session",
@@ -28719,7 +28765,7 @@ async function validateRpcCommand(raw, validateSessionPath) {
   throw new TypeError(`RPC command ${type} is not exposed to the renderer`);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/runtime.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/runtime.ts
 var import_node_child_process6 = require("node:child_process");
 var import_node_crypto7 = require("node:crypto");
 var import_node_perf_hooks = require("node:perf_hooks");
@@ -28727,7 +28773,7 @@ init_process_utils();
 init_session_paths();
 init_validation();
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/events.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/events.ts
 var DEFAULT_AGENT_EVENT_LIMITS = {
   maxEvents: 500,
   maxEnvelopeBytes: 8 * 1024 * 1024,
@@ -28811,7 +28857,7 @@ var AgentEventForwarder = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/context-usage.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/context-usage.ts
 init_validation();
 var CHARS_PER_TOKEN_ESTIMATE = 4;
 function boundedTokenCount(value) {
@@ -28884,7 +28930,7 @@ function withLiveContextUsage(snapshot3, activityTokens, snapshotActivityTokens)
   };
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/transport.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/transport.ts
 var import_node_string_decoder4 = require("node:string_decoder");
 init_validation();
 var STDERR_MAX_FRAGMENT_BYTES = 8 * 1024;
@@ -29043,7 +29089,7 @@ var FramedRpcTransport = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/runtime.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/runtime.ts
 var DEFAULT_COMPACTION_WATCHDOG_TIMINGS = {
   pollIntervalMs: 2e3,
   endGraceMs: 4e3,
@@ -29809,7 +29855,7 @@ var RpcRuntime = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/electron/main/agent-rpc/manager.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/electron/main/agent-rpc/manager.ts
 var PROMPT_POLL_MS = 200;
 var PROMPT_TERMINAL_SETTLE_MS = 750;
 var PROMPT_IDLE_GRACE_MS = 750;
@@ -30551,7 +30597,7 @@ function isRetryableFailure(message2) {
   return RETRYABLE_FAILURE_PATTERN.test(message2);
 }
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/coding/tracked-agent-rpc.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/coding/tracked-agent-rpc.ts
 var TrackedAgentRpcManager = class extends AgentRpcManager {
   constructor(ledger, ...args) {
     super(...args);
@@ -30575,7 +30621,7 @@ var TrackedAgentRpcManager = class extends AgentRpcManager {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/bot-control.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/bot-control.ts
 var import_node_crypto8 = require("node:crypto");
 var import_node_http = require("node:http");
 var MAX_BODY_BYTES = 128 * 1024;
@@ -30809,7 +30855,7 @@ var BotControlService = class {
   }
 };
 
-// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-rpTBQq/research/tauri-spike/workbench-service.ts
+// C:/Users/beyon/AppData/Local/Temp/aio-bot-source-7KLu1A/research/tauri-spike/workbench-service.ts
 var MAX_WIRE_LINE_BYTES = 2 * 1024 * 1024;
 var diagnostic = (...values) => {
   process.stderr.write(values.map((value) => typeof value === "string" ? value : JSON.stringify(value)).join(" ") + "\n");
@@ -31328,6 +31374,102 @@ async function dispatch(context, request) {
       return unavailable(request.channel);
   }
 }
+async function migrateSharedCodingPluginStorage(appDataPath) {
+  const configured = process.env.AIO_PLUGIN_STORAGE;
+  if (configured && !(0, import_node_path23.isAbsolute)(configured)) throw new TypeError("AIO_PLUGIN_STORAGE must be an absolute path");
+  const targetRoot = configured ? (0, import_node_path23.resolve)(configured) : appDataPath;
+  const target = (0, import_node_path23.resolve)(targetRoot, "coding-cli-plugins.json");
+  if (!configured) return target;
+  const fs = await import("node:fs/promises");
+  const paths = await import("node:path");
+  await fs.mkdir(targetRoot, { recursive: true });
+  const lock = target + ".lock";
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await fs.writeFile(lock, JSON.stringify({ pid: process.pid, createdAt: Date.now() }), { flag: "wx", mode: 384 });
+      break;
+    } catch (error) {
+      if (error.code !== "EEXIST" || attempt >= 1600) throw error;
+      const info = await fs.stat(lock).catch(() => void 0);
+      let deadOwner = false;
+      let ownerKnown = false;
+      try {
+        const owner = JSON.parse(await fs.readFile(lock, "utf8"));
+        if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+          ownerKnown = true;
+          try {
+            process.kill(owner.pid, 0);
+          } catch (probe) {
+            deadOwner = probe.code === "ESRCH";
+          }
+        }
+      } catch {
+      }
+      if (info && (deadOwner || !ownerKnown && Date.now() - info.mtimeMs > 3e4)) {
+        await fs.unlink(lock).catch(() => fs.rmdir(lock).catch(() => void 0));
+      }
+      await new Promise((done) => setTimeout(done, 25));
+    }
+  }
+  try {
+    if ((await fs.stat(target).catch(() => void 0))?.isFile()) return target;
+    const userRoot = paths.dirname(paths.dirname(paths.dirname(targetRoot)));
+    const workspaceStorage = paths.resolve(userRoot, "workspaceStorage");
+    const roots = /* @__PURE__ */ new Set([appDataPath, paths.resolve(paths.dirname(targetRoot), "workbench")]);
+    for (const entry of await fs.readdir(workspaceStorage, { withFileTypes: true }).catch(() => [])) {
+      if (entry.isDirectory()) roots.add(paths.resolve(workspaceStorage, entry.name, "ancoder.aio-ide", "workbench"));
+    }
+    const selected = /* @__PURE__ */ new Map();
+    for (const root of roots) {
+      const statePath = paths.resolve(root, "coding-cli-plugins.json");
+      try {
+        const info = await fs.stat(statePath);
+        if (!info.isFile() || info.size > 64 * 1024) continue;
+        const state = JSON.parse(await fs.readFile(statePath, "utf8"));
+        if (state?.version !== 1 || !state.plugins || typeof state.plugins !== "object") continue;
+        for (const id of ["omp", "claude", "codex"]) {
+          const row = state.plugins[id];
+          if (!row || typeof row.installed !== "boolean" || typeof row.enabled !== "boolean") continue;
+          const current = selected.get(id);
+          if (current && current.mtimeMs > info.mtimeMs) continue;
+          let manifest2;
+          if (row.installed) {
+            const filename = paths.resolve(root, "coding-cli-plugins", id, "manifest.json");
+            const manifestInfo = await fs.stat(filename).catch(() => void 0);
+            if (!manifestInfo?.isFile() || manifestInfo.size > 64 * 1024) continue;
+            manifest2 = await fs.readFile(filename, "utf8");
+            const parsed = JSON.parse(manifest2);
+            if (parsed?.id !== id || parsed?.adapter !== id || parsed?.kind !== "coding-cli") continue;
+          }
+          selected.set(id, {
+            mtimeMs: info.mtimeMs,
+            state: {
+              installed: row.installed,
+              enabled: row.installed && row.enabled,
+              ...typeof row.executablePath === "string" && row.executablePath.length <= 4096 ? { executablePath: row.executablePath } : {}
+            },
+            manifest: manifest2
+          });
+        }
+      } catch {
+      }
+    }
+    if (!selected.size) return target;
+    const plugins = Object.fromEntries([...selected].map(([id, candidate]) => [id, candidate.state]));
+    for (const [id, candidate] of selected) {
+      if (!candidate.manifest) continue;
+      const directory = paths.resolve(targetRoot, "coding-cli-plugins", id);
+      await fs.mkdir(directory, { recursive: true, mode: 448 });
+      await fs.writeFile(paths.resolve(directory, "manifest.json"), candidate.manifest, { mode: 384 });
+    }
+    const temporary = target + "." + (0, import_node_crypto10.randomUUID)() + ".tmp";
+    await fs.writeFile(temporary, JSON.stringify({ version: 1, plugins }), { flag: "wx", mode: 384, flush: true });
+    await fs.rename(temporary, target);
+    return target;
+  } finally {
+    await fs.unlink(lock).catch(() => fs.rmdir(lock).catch(() => void 0));
+  }
+}
 async function createContext(appDataPath, resourceRoot, smoke, liveCli) {
   if (!(0, import_node_path23.isAbsolute)(appDataPath) || !(0, import_node_path23.isAbsolute)(resourceRoot)) throw new TypeError("Workbench paths must be absolute");
   await (0, import_promises18.mkdir)(appDataPath, { recursive: true });
@@ -31413,8 +31555,9 @@ async function createContext(appDataPath, resourceRoot, smoke, liveCli) {
     codingSessionsPath: (0, import_node_path23.resolve)(appDataPath, "coding-sessions.json")
   });
   const windowsClaudeDiscovery = new WindowsClaudeDiscovery();
+  const codingPluginStatePath = await migrateSharedCodingPluginStorage(appDataPath);
   const codingPlugins = new CodingCliPluginRegistry(
-    (0, import_node_path23.resolve)(appDataPath, "coding-cli-plugins.json"),
+    codingPluginStatePath,
     async (id, options) => {
       if (smoke && !liveCli) return process.execPath;
       if (id === "omp") {
