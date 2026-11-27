@@ -141,6 +141,21 @@ async function main() {
     const first = await runWindow(_electron, code, profile, extensions, project, false, 'zh-CN');
     const restart = await runWindow(_electron, code, profile, extensions, project, false, 'en');
     const empty = await runWindow(_electron, code, profile, extensions, undefined, true);
+    await fs.writeFile(path.join(profile, 'User', 'settings.json'), JSON.stringify({
+      'window.restoreWindows': 'none', 'aio.openWorkbenchOnStartup': false,
+    }));
+    const app = await launch(_electron, code, profile, extensions, project);
+    try {
+      const page = await app.firstWindow();
+      const icon = page.locator('.activitybar').getByRole('tab', { name: /^AIO\b/i });
+      await icon.waitFor();
+      const tabs = page.locator('.tabs-container .tab').filter({ hasText: /AIO (工作台|Workbench)/i });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      assert.equal(await tabs.count(), 0, 'Disabled autostart still opened AIO');
+      await icon.click();
+      await workbenchSurface(app, performance.now());
+      assert.equal(await tabs.count(), 1, 'Manual open must still work');
+    } finally { await app.close(); }
     assert.equal(first.version, restart.version);
     assert.equal(restart.version, empty.version);
     process.stdout.write(JSON.stringify({ version: first.version, firstLaunch: first, restart, emptyWindow: empty, duplicateTabs: 0 }) + '\n');

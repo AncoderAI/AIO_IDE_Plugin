@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -71,6 +71,7 @@
     "configuration": {
       "title": "AIO",
       "properties": {
+        "aio.openWorkbenchOnStartup": { "type": "boolean", "default": true, "scope": "window", "description": "%config.openWorkbenchOnStartup%" },
         "aio.ompPath": { "type": "string", "default": "", "scope": "machine", "description": "%config.ompPath%" },
         "aio.claudePath": { "type": "string", "default": "", "scope": "machine", "description": "%config.claudePath%" },
         "aio.codexPath": { "type": "string", "default": "", "scope": "machine", "description": "%config.codexPath%" }

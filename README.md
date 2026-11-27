@@ -19,7 +19,7 @@ Claude Code and Codex handle keystrokes in their terminal interfaces. A headless
 Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manage terminal-based coding agents, with the advantage of working directly in VS Code, Cursor, or TRAE: while Claude Code, Codex, or Oh My Pi (OMP) runs, you can read the code, inspect its Git history, and select a snippet to copy and paste or drag into the IDE’s integrated terminal input.
 
 - Use OMP, Claude Code, and Codex in one workbench. Each CLI can run in its own terminal, and an optional Bot can start worker terminals, delegate tasks, and receive progress reports.
-- Open the workbench from the VS Code Activity Bar. It opens automatically in trusted windows, stays on the right, and expands to fill the editor area when the file preview is hidden.
+- Open the workbench from the VS Code Activity Bar. By default it opens automatically in trusted windows (toggle `aio.openWorkbenchOnStartup` in VS Code Settings), stays on the right, and expands to fill the editor area when the file preview is hidden.
 - Manage multiple projects and switch the current VS Code folder from the project list. Browse CLI history on demand by project, with each loaded session labeled by its first prompt.
 - Choose English, Simplified Chinese, or the system language. The workbench uses a dark theme by default.
 - **Planned: disk usage by folder.** AI coding tools running in parallel can write large amounts of data and quickly exhaust free disk space. AIO will record the path and disk usage of every folder the tools access so you can find large folders and decide what to clean up.
@@ -49,7 +49,7 @@ Claude Code 和 Codex 在终端界面中处理按键。通过 SDK 或 RPC 无头
 AIO 与 T3 Code、Orca、Paseo、Herdr、Cindy 都能编排和管理终端中的 AI 编程助手，AIO 插件的优势是可以直接在 VS Code、Cursor、TRAE 等 IDE 中管理 Claude Code、Codex 和 Oh My Pi（OMP），随时阅读代码、查看 Git 历史，还能在编辑器中选中一段代码，复制粘贴或拖到 IDE 集成终端的输入框。
 
 - 在同一个工作台使用 OMP、Claude Code 和 Codex。各 CLI 可在独立终端运行，也可选用 Bot 创建工作终端、分派任务并接收进度反馈。
-- 通过 VS Code 活动栏进入工作台。受信任窗口启动时会自动打开 AIO。工作台位于最右侧，文件预览收起后占满编辑区。
+- 通过 VS Code 活动栏进入工作台。受信任窗口启动时默认自动打开 AIO，可在 VS Code 设置中搜索 `aio.openWorkbenchOnStartup` 并取消勾选。工作台位于最右侧，文件预览收起后占满编辑区。
 - 管理多个项目，并从项目列表切换 VS Code 当前文件夹。按项目和 CLI 加载历史会话，已加载会话以首条输入作为标签。
 - 界面支持英语、简体中文和跟随系统。工作台默认使用深色主题。
 - **规划中：按文件夹记录磁盘占用。** 多个 AI 编程工具并行运行时可能写入大量数据，迅速耗尽可用磁盘空间。AIO 计划记录这些工具操作过的每个文件夹的路径和磁盘占用大小，方便你找到占用空间较大的目录，检查后决定清理哪些内容。

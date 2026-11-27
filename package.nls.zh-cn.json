@@ -15,6 +15,7 @@
   "command.openRegisteredProject": "打开已登记项目",
   "command.openWorkbench": "打开完整工作台",
   "view.codingAgents": "编程智能体",
+  "config.openWorkbenchOnStartup": "启动 VS Code 时自动打开 AIO 工作台。",
   "config.ompPath": "OMP 可执行文件的绝对路径。留空时自动检测。",
   "config.claudePath": "Claude Code 可执行文件的绝对路径。留空时自动检测。",
   "config.codexPath": "Codex 可执行文件的绝对路径。留空时自动检测。"

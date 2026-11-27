@@ -15,6 +15,7 @@
   "command.openRegisteredProject": "Open Registered Project",
   "command.openWorkbench": "Open Full Workbench",
   "view.codingAgents": "Coding Agents",
+  "config.openWorkbenchOnStartup": "Automatically open AIO Workbench when VS Code starts.",
   "config.ompPath": "Absolute path to the OMP executable. Leave empty to detect it automatically.",
   "config.claudePath": "Absolute path to the Claude Code executable. Leave empty to detect it automatically.",
   "config.codexPath": "Absolute path to the Codex executable. Leave empty to detect it automatically."
