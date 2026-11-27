@@ -441,7 +441,7 @@ class WorkbenchHost {
       throw new Error('AIO 工作台资源未构建。请先运行 npm run build:workbench。')
     }
     const storageUri = this.context.storageUri || this.context.globalStorageUri
-    await this.vscode.workspace.fs.createDirectory(storageUri)
+    const source = await fs.promises.readFile(indexPath, 'utf8')
     const panel = await this.createWorkbenchPanel(uiRoot)
     let service
     try {
@@ -449,7 +449,6 @@ class WorkbenchHost {
       const panelDisposable = panel.onDidDispose(() => this.close(panel))
       this.disposables.push(panelDisposable)
       const profilePath = path.join(storageUri.fsPath, 'workbench')
-      await fs.promises.mkdir(profilePath, { recursive: true })
       service = new WorkbenchService({
         version: this.context.extension?.packageJSON?.version || 'development',
         profilePath,
@@ -467,20 +466,27 @@ class WorkbenchHost {
         this.log.appendLine(message)
         if (this.service === service && this.panel === panel) void this.vscode.window.showErrorMessage(message)
       })
-      service.start()
-      await this.options.projectRegistry?.syncService?.(service)
-      this.notifyPanelChanged()
       const uiUri = panel.webview.asWebviewUri(this.vscode.Uri.file(uiRoot))
       const bridgeUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'webview-bridge.js'))))
       const fileDropUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'file-drop.js'))))
       const panelScriptUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.js'))))
       const panelStyleUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.css'))))
-      const source = await fs.promises.readFile(indexPath, 'utf8')
       if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
-      const messageDisposable = panel.webview.onDidReceiveMessage((message) => { void this.handleMessage(message, panel, service) })
+      const ready = fs.promises.mkdir(profilePath, { recursive: true }).then(() => {
+        if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
+        service.start()
+      })
+      const messageDisposable = panel.webview.onDidReceiveMessage((message) => {
+        void ready.then(() => this.handleMessage(message, panel, service), () => {})
+      })
       this.disposables.push(messageDisposable)
       const historyUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'history-view.js'))))
       panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri, historyUri)
+      await ready
+      this.projectSync = Promise.resolve(this.options.projectRegistry?.syncService?.(service)).catch((error) => {
+        if (this.service === service) this.log.appendLine('AIO 项目同步失败 ' + errorMessage(error))
+      })
+      this.notifyPanelChanged()
       return panel
     } catch (error) {
       if (this.service === service) this.service = undefined
@@ -596,7 +602,10 @@ class WorkbenchHost {
       return channel === 'terminal:list-restorable' ? {} : []
     }
     if (channel === 'app:refresh-coding-cli-history') return null
-    if (channel === 'projects:list') return service.request('projects:list-initial', [])
+    if (channel === 'projects:list') {
+      await this.projectSync
+      return service.request('projects:list-initial', [])
+    }
     if (['aio-history:cached', 'aio-history:list', 'aio-history:resume'].includes(channel)) {
       const [folder, provider, id] = args
       if (this.vscode.workspace.isTrusted === false || typeof folder !== 'string' ||

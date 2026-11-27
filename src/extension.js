@@ -12,7 +12,7 @@ async function activate(context) {
   registerLauncher(vscode, context);
   const projectRegistry = new ProjectRegistry(vscode, context);
   context.subscriptions.push(projectRegistry);
-  await projectRegistry.start();
+  void projectRegistry.start().catch((error) => vscode.window.showErrorMessage(String(error)));
   const workbenchHost = registerWorkbench(vscode, context, { projectRegistry });
   projectRegistry.setProjectImporter((paths) => workbenchHost.addProjectCandidates(
     paths.map((value) => ({ kind: 'path', value })), true));
