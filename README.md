@@ -4,7 +4,7 @@
 
 ## Features
 
-Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manage terminal-based coding agents, with the advantage that you can review code at any time in the same IDE (VS Code, Cursor, or TRAE) while Claude Code, Codex, or Oh My Pi (OMP) runs.
+Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manage terminal-based coding agents, with the advantage of working directly in VS Code, Cursor, or TRAE: while Claude Code, Codex, or Oh My Pi (OMP) runs, you can read the code, inspect its Git history, and select a snippet to copy and paste or drag into the IDE’s integrated terminal input.
 
 - Use OMP, Claude Code, and Codex in one workbench. Each CLI can run in its own terminal, and an optional Bot can start worker terminals, delegate tasks, and receive progress reports.
 - Open the workbench from the VS Code Activity Bar. It opens automatically in trusted windows, stays on the right, and expands to fill the editor area when the file preview is hidden.
@@ -21,7 +21,7 @@ Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manag
 
 ## 功能说明
 
-AIO 与 T3 Code、Orca、Paseo、Herdr、Cindy 都能编排和管理终端中的 AI 编程助手，AIO 插件的优势是可以直接在 VS Code、Cursor、TRAE 等 IDE 中管理 Claude Code、Codex 和 Oh My Pi（OMP），随时查看代码。
+AIO 与 T3 Code、Orca、Paseo、Herdr、Cindy 都能编排和管理终端中的 AI 编程助手，AIO 插件的优势是可以直接在 VS Code、Cursor、TRAE 等 IDE 中管理 Claude Code、Codex 和 Oh My Pi（OMP），随时阅读代码、查看 Git 历史，还能在编辑器中选中一段代码，复制粘贴或拖到 IDE 集成终端的输入框。
 
 - 在同一个工作台使用 OMP、Claude Code 和 Codex。各 CLI 可在独立终端运行，也可选用 Bot 创建工作终端、分派任务并接收进度反馈。
 - 通过 VS Code 活动栏进入工作台。受信任窗口启动时会自动打开 AIO。工作台位于最右侧，文件预览收起后占满编辑区。
