@@ -218,6 +218,9 @@ async function verifyAutoPanels(window, frame, app) {
   await moveOutsidePanel('right');
   await waitFor(frame, async () => !(await visible(inspector)), 'inspector hide after click reveal');
 
+  assert.equal(await frame.locator('.floating-inspector-resize .resize-handle:visible').count(), 0,
+    'The hidden inspector left its resize handle over the terminal.');
+
   await frame.evaluate(() => {
     const make = (className, side, top) => {
       const region = document.createElement('div');

@@ -74,6 +74,11 @@ body:has(.app-shell) {
   backdrop-filter: blur(16px);
 }
 
+/* The floating resize grip is a sibling of the inspector, outside its hidden subtree. */
+.app-shell.aio-auto-hide-panels .floating-inspector-resize:not(:has(+ .auto-hide-panel--inspector:not(.aio-panel-hidden))) {
+  display: none !important;
+}
+
 .app-shell.aio-auto-hide-panels > :is(.sidebar, .auto-hide-panel--sidebar).aio-panel-hidden {
   transform: translateX(calc(-100% - 16px));
 }
