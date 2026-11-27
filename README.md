@@ -12,6 +12,8 @@ With AIO, you can read a function alongside its callers, check Git history to se
 
 **Why run the interactive CLI in AIO?**
 
+With AIO in your IDE, you can read source files alongside a terminal, use the built-in launchers for Claude Code, Codex, and Oh My Pi (OMP), or run other installed tools such as Pi, OpenCode, and Kimi Code directly in the IDE terminal.
+
 Claude Code and Codex handle keystrokes in their terminal interfaces. A headless SDK or RPC client can submit tasks, but sending a prompt does not reproduce the CLI’s keyboard interactions or automatically expose every slash command. In an AIO terminal, you can use the controls supported by your installed CLI directly, including Claude Code’s `/loop` to repeat a prompt and Codex’s `/goal` to work toward a completion condition. A headless client may offer equivalent capabilities through its own API. [Claude Code scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks) · [Codex goals](https://developers.openai.com/cookbook/examples/codex/using_goals_in_codex)
 
 Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manage terminal-based coding agents, with the advantage of working directly in VS Code, Cursor, or TRAE: while Claude Code, Codex, or Oh My Pi (OMP) runs, you can read the code, inspect its Git history, and select a snippet to copy and paste or drag into the IDE’s integrated terminal input.
@@ -38,6 +40,8 @@ Like T3 Code, Orca, Paseo, Herdr, and Cindy, AIO helps you orchestrate and manag
 在 AIO 中，你可以对照函数和调用方阅读代码，通过 Git 历史弄清某个约束为何存在，再把这些背景交给编程助手。除了描述任务，还可以选中相关函数或代码段，或引用具体文件和文件夹。改完后对照差异检查模块职责和依赖关系，有助于在架构偏离设计之初发现问题。
 
 **为什么在 AIO 中运行交互式 CLI？**
+
+AIO 作为 IDE 插件，让你可以一边阅读代码文件，一边在终端中操作编程工具：通过内置入口启动 Claude Code、Codex 和 Oh My Pi（OMP），也可以在 IDE 终端中直接运行已安装的 Pi、OpenCode、Kimi Code 等工具。
 
 Claude Code 和 Codex 在终端界面中处理按键。通过 SDK 或 RPC 无头调用可以提交任务，但发送提示词无法还原终端的快捷键交互，也不会自动获得每一条斜杠命令。在 AIO 终端中，你可以直接使用已安装 CLI 版本支持的原生操作，例如用 Claude Code 的 `/loop` 定期重复提示词，用 Codex 的 `/goal` 持续推进任务直到满足完成条件。无头客户端能否实现相同效果，取决于它提供的接口。[Claude Code 定时任务](https://code.claude.com/docs/en/scheduled-tasks) · [Codex 目标](https://developers.openai.com/cookbook/examples/codex/using_goals_in_codex)
 
