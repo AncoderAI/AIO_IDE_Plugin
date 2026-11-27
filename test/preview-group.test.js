@@ -182,3 +182,38 @@ test('layout classifier accepts only an unchanged simple horizontal pair', () =>
   assert.equal(sameSimpleLayout(expanded, { orientation: 0, groups: [{ size: 0.46 }, { size: 0.54 }] }), true)
   assert.equal(sameSimpleLayout(expanded, { orientation: 0, groups: [{ size: 0.3 }, { size: 0.7 }] }), false)
 })
+
+test('Cursor resizes the preview without cycling maximize or stealing editor focus', async () => {
+  const setup = fixture()
+  setup.vscode.env = { appName: 'Cursor' }
+  const controller = await managedController(setup)
+  await delay(20)
+  await controller.queue
+  for (let index = 0; index < 10; index++) setup.focusEditor({ document: {} })
+  await controller.queue
+  assert.deepEqual(setup.actions, ['vscode.setEditorLayout'])
+  await controller.showFromTrigger()
+  controller.aioPointerEntered()
+  await delay(20)
+  await controller.queue
+  assert.deepEqual(setup.actions, Array(3).fill('vscode.setEditorLayout'))
+  await controller.close()
+})
+
+test('returning to the preview during the exit delay cancels collapse', async () => {
+  const setup = fixture()
+  const controller = await managedController(setup)
+  await delay(15)
+  await controller.showFromTrigger()
+  setup.hover.emit('state', 'inside')
+  controller.aioPointerEntered()
+  setup.hover.emit('state', 'inside')
+  await delay(15)
+  await controller.queue
+  assert.equal(controller.collapsed, false)
+  setup.hover.emit('state', 'outside')
+  await delay(15)
+  await controller.queue
+  assert.equal(controller.collapsed, true)
+  await controller.close()
+})

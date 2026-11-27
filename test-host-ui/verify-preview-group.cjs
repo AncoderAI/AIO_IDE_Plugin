@@ -61,6 +61,10 @@ async function verifyPreviewGroup(window, frame, project) {
   await previewEdge.evaluate(element => element.click());
   await new Promise(resolve => setTimeout(resolve, 250));
   assert.ok(((await editor.boundingBox())?.width || 0) < 40, 'Programmatic click must not reveal the file preview.');
+  await previewEdge.dispatchEvent('pointerenter');
+  await previewEdge.dispatchEvent('pointerleave');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.ok(((await editor.boundingBox())?.width || 0) < 40, 'Passing over the button must not open the preview.');
   await previewEdge.hover();
   await waitFor(async () => ((await editor.boundingBox())?.width || 0) > 120, 'file preview button hover to restore the file group');
   const restoredEditor = await editor.boundingBox();

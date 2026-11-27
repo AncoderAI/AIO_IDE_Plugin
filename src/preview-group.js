@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process')
 const path = require('node:path')
 const readline = require('node:readline')
 
-const COLLAPSE_DELAY_MS = 180
+const COLLAPSE_DELAY_MS = 350
 
 function cloneLayout(layout) {
   return layout && JSON.parse(JSON.stringify(layout))
@@ -72,6 +72,7 @@ class PreviewGroupController {
     this.vscode = vscode
     this.context = context
     this.options = options
+    this.useExplicitWidths = /cursor/i.test(vscode.env?.appName || '')
     this.baselineLayout = undefined
     this.expandedLayout = undefined
     this.panel = undefined
@@ -112,7 +113,7 @@ class PreviewGroupController {
       this.expandedLayout = layout
       this.managed = true
       const editorDisposable = this.vscode.window.onDidChangeActiveTextEditor?.((editor) => {
-        if (editor && this.collapsed) {
+        if (editor && this.collapsed && !this.useExplicitWidths) {
           // VS Code restores the split before it activates a file opened from Explorer.
           // Re-maximize AIO until the user explicitly hovers the preview button.
           this.collapsed = false
@@ -149,7 +150,6 @@ class PreviewGroupController {
           clearTimeout(this.timer)
           this.timer = undefined
         } else if (!this.awaitingAioReentry) {
-          this.previewRequested = false
           this.hoveringPreview = false
           this.scheduleCollapse()
         }
@@ -198,7 +198,11 @@ class PreviewGroupController {
         this.abandon()
         return false
       }
-      await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
+      if (this.useExplicitWidths) {
+        await this.vscode.commands.executeCommand('vscode.setEditorLayout', this.expandedLayout)
+      } else {
+        await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
+      }
       this.collapsed = false
       await this.panel?.webview?.postMessage?.({ type: 'aio:file-preview-state', collapsed: false })
       return true
@@ -214,8 +218,14 @@ class PreviewGroupController {
         this.abandon()
         return false
       }
-      this.panel.reveal?.(this.panel.viewColumn)
-      await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
+      if (this.useExplicitWidths) {
+        await this.vscode.commands.executeCommand('vscode.setEditorLayout', {
+          orientation: 0, groups: [{ size: 0.001 }, { size: 0.999 }],
+        })
+      } else {
+        this.panel.reveal?.(this.panel.viewColumn)
+        await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
+      }
       this.collapsed = true
       this.previewRequested = false
       await this.panel?.webview?.postMessage?.({ type: 'aio:file-preview-state', collapsed: true })
@@ -231,7 +241,6 @@ class PreviewGroupController {
   }
 
   aioPointerEntered() {
-    this.previewRequested = false
     this.awaitingAioReentry = false
     this.hoveringPreview = false
     this.scheduleCollapse()
@@ -247,7 +256,8 @@ class PreviewGroupController {
       if (this.collapsed && this.managed && !this.abandoned && !this.vscode.window.visibleTextEditors?.length) {
         const layout = await this.currentLayout()
         if (isSimpleTwoGroupLayout(layout)) {
-          await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
+          if (this.useExplicitWidths) await this.vscode.commands.executeCommand('vscode.setEditorLayout', this.expandedLayout)
+          else await this.vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup')
         } else {
           this.abandoned = true
         }

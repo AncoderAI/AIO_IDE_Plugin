@@ -77,7 +77,14 @@
     previewEdge.className = 'aio-file-preview-edge'
     updateLocalizedControls()
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
-    previewEdge.addEventListener('pointerenter', requestFilePreview)
+    let previewTimer
+    const cancelPreview = () => root.clearTimeout(previewTimer)
+    previewEdge.addEventListener('pointerenter', () => {
+      cancelPreview()
+      previewTimer = root.setTimeout(requestFilePreview, 200)
+    })
+    previewEdge.addEventListener('pointerleave', cancelPreview)
+    previewEdge.addEventListener('pointercancel', cancelPreview)
 
     const setPanel = (panel, visible) => {
       if (!panel) return
@@ -386,6 +393,7 @@
       if (introTimer) root.clearTimeout(introTimer)
       leftToggle.remove()
       rightToggle?.classList.remove('aio-panel-toggle-right')
+      cancelPreview()
       previewEdge.remove()
       sidebar?.classList.remove('aio-panel-hidden')
       inspector?.classList.remove('aio-panel-hidden')

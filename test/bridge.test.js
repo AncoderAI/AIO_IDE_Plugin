@@ -463,6 +463,30 @@ test('workbench moves itself back to the rightmost editor group after another gr
   host.dispose()
 })
 
+test('a host-owned group that stays to the right cannot trigger an endless correction loop', async () => {
+  const actions = []
+  let notify
+  const tabs = {
+    all: [{}, {}, {}], activeTabGroup: { viewColumn: 2 },
+    onDidChangeTabGroups(listener) { notify = listener; return { dispose() {} } },
+  }
+  const host = new WorkbenchHost({
+    window: { tabGroups: tabs, createOutputChannel: () => ({ appendLine() {}, dispose() {} }) },
+    commands: { executeCommand: async (id) => {
+      if (id === 'vscode.getEditorLayout') return { orientation: 0, groups: [{}, {}, {}] }
+      actions.push(id)
+    } },
+  }, {})
+  const panel = { viewColumn: 2, reveal() {} }
+  host.panel = panel
+  host.watchWorkbenchPosition(panel)
+  for (let i = 0; i < 10; i++) notify()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(actions, ['workbench.action.moveActiveEditorGroupRight'])
+  host.panel = undefined
+  host.dispose()
+})
+
 test('workbench preview timer attaches once after the webview ready handshake', async () => {
   let attaches = 0
   const previewGroupController = {

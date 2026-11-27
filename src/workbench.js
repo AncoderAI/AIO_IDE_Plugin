@@ -461,6 +461,7 @@ class WorkbenchHost {
     const tabs = this.vscode.window.tabGroups
     if (!tabs?.onDidChangeTabGroups) return
     let queue = Promise.resolve()
+    let lastMove
     const correct = async () => {
       if (this.panel !== panel || !panel.viewColumn) return
       const groups = tabs.all
@@ -479,7 +480,14 @@ class WorkbenchHost {
       if (count === 2 && column === count && this.previewReadyPanels.has(panel) && !this.previewGroup.managed && !this.previewGroup.abandoned) {
         await this.previewGroup.attach(panel)
       }
-      if (!column || column >= count || this.panel !== panel) return
+      if (!column || column >= count || this.panel !== panel) {
+        lastMove = undefined
+        return
+      }
+      // Focus and resize notifications can repeat while a host-owned group stays on the right.
+      const move = column + '/' + count
+      if (lastMove === move) return
+      lastMove = move
       const focused = tabs.activeTabGroup.viewColumn
       panel.reveal(column)
       for (let step = column; step < count && this.panel === panel; step++) {
