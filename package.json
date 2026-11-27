@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "AIO · AI CLI 工作台",
   "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",

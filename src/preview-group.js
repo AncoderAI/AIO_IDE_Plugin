@@ -101,6 +101,7 @@ class PreviewGroupController {
       if (!this.baselineLayout) {
         this.baselineLayout = cloneLayout(await this.vscode.commands.executeCommand('vscode.getEditorLayout'))
       }
+      return this.baselineLayout
     })
   }
 
@@ -108,7 +109,7 @@ class PreviewGroupController {
     return this.run(async () => {
       this.panel = panel
       const layout = cloneLayout(await this.vscode.commands.executeCommand('vscode.getEditorLayout'))
-      if (!isSingleGroupLayout(this.baselineLayout) || !isSimpleTwoGroupLayout(layout)) return false
+      if (!(isSingleGroupLayout(this.baselineLayout) || isSimpleTwoGroupLayout(this.baselineLayout)) || !isSimpleTwoGroupLayout(layout)) return false
       this.expandedLayout = layout
       this.managed = true
       this.fileEditorFocused = Boolean(this.vscode.window.activeTextEditor)

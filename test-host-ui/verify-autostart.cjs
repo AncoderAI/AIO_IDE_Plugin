@@ -46,6 +46,7 @@ async function workbenchSurface(app, startedAt) {
 }
 
 async function verifySingleWorkbench(surface) {
+  assert.equal(await surface.page.locator('.part.editor .editor-group-container').count(), 2, 'Expected one preview group and one AIO group.');
   const frames = [];
   for (const frame of surface.page.frames()) {
     if (await frame.evaluate(() => Boolean(window.__TAURI__ && document.querySelector('#root'))).catch(() => false)) frames.push(frame);

@@ -371,11 +371,11 @@ test('workbench clipboard commands require the active panel and a visible termin
 })
 
 test('workbench panel gets a new locked editor group', async () => {
-  for (const side of ['left', 'right']) {
+  for (const [side, restored] of [['left', false], ['right', false], ['left', true]]) {
     const actions = []
     const panel = { id: 'aio-panel' }
     const previewGroupController = {
-      captureBaseline: async () => { actions.push('captureBaseline') },
+      captureBaseline: async () => { actions.push('captureBaseline'); return restored && { orientation: 0, groups: [{}, {}] } },
       close: async () => {},
       dispose: async () => {},
     }
@@ -386,8 +386,9 @@ test('workbench panel gets a new locked editor group', async () => {
       commands: { executeCommand: async (command) => { actions.push(command) } },
       window: {
         createOutputChannel: () => ({ append() {}, appendLine() {}, dispose() {} }),
+        tabGroups: { all: restored ? [{ viewColumn: 2, tabs: [] }] : [] },
         createWebviewPanel: (_type, _title, column) => {
-          assert.equal(column, -1)
+          assert.equal(column, restored ? 2 : -1)
           actions.push('createWebviewPanel')
           return panel
         },
@@ -401,7 +402,7 @@ test('workbench panel gets a new locked editor group', async () => {
     assert.deepEqual(actions, [
       'captureBaseline',
       ...(side === 'right' ? ['workbench.action.moveSideBarLeft'] : []),
-      'workbench.action.newGroupRight',
+      ...(restored ? [] : ['workbench.action.newGroupRight']),
       'createWebviewPanel',
       'workbench.action.lockEditorGroup',
     ])
