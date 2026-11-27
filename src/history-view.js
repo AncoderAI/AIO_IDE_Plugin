@@ -1,6 +1,20 @@
-'use strict'
+(function (root, factory) {
+  const api = factory(root)
+  if (typeof module === 'object' && module.exports) module.exports = api
+  else api.installHistoryView()
+})(typeof globalThis === 'object' ? globalThis : this, function createHistoryViewApi(root) {
+  'use strict'
 
-if (typeof window !== 'undefined') {
+  const HISTORY_COPY = {
+    en: { empty: 'No history sessions', loading: 'Loading…' },
+    'zh-CN': { empty: '没有历史会话', loading: '正在加载…' },
+  }
+  const historyCopy = language => HISTORY_COPY[String(language).toLowerCase().startsWith('zh') ? 'zh-CN' : 'en']
+
+  function installHistoryView() {
+    const window = root.window || root
+    const document = window.document
+    if (!document) return
   const agents = [['omp', 'OMP'], ['claude', 'Claude Code'], ['codex', 'Codex']]
   const mounted = new WeakSet()
   const invoke = (channel, args) => window.__TAURI__.core.invoke('desktop_request', { channel, args })
@@ -23,7 +37,10 @@ if (typeof window !== 'undefined') {
     let clicked = false
     const showRows = rows => {
       results.replaceChildren()
-      if (!rows.length) results.textContent = '没有历史会话'
+      if (!rows.length) {
+        results.dataset.aioHistoryState = 'empty'
+        results.textContent = historyCopy(document.documentElement.lang).empty
+      } else delete results.dataset.aioHistoryState
       for (const row of rows) {
         const title = label + ' · ' + row.title
         const item = button(title, async () => {
@@ -44,10 +61,12 @@ if (typeof window !== 'undefined') {
     const load = button(label, async () => {
       clicked = true
       load.disabled = true
-      results.textContent = '正在加载…'
+      results.dataset.aioHistoryState = 'loading'
+      results.textContent = historyCopy(document.documentElement.lang).loading
       try {
         showRows(await invoke('aio-history:list', [project, provider]))
       } catch (error) {
+        delete results.dataset.aioHistoryState
         results.textContent = error.message
       } finally { load.disabled = false }
     })
@@ -70,13 +89,24 @@ if (typeof window !== 'undefined') {
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  const start = () => {
     const root = document.getElementById('root')
     if (!root) return
     new MutationObserver(records => {
       if (records.some(record => Array.from(record.addedNodes).some(node =>
         node.nodeType === 1 && (node.matches('.sidebar, .project-group') || node.querySelector('.sidebar, .project-group'))))) mount()
     }).observe(root, { childList: true, subtree: true })
+    new window.MutationObserver(() => {
+      const copy = historyCopy(document.documentElement.lang)
+      for (const results of document.querySelectorAll('.aio-history-results[data-aio-history-state]')) {
+        results.textContent = copy[results.dataset.aioHistoryState]
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] })
     mount()
-  }, { once: true })
-}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true })
+  else start()
+  }
+
+  return { historyCopy, installHistoryView }
+})

@@ -1,8 +1,8 @@
 {
   "name": "aio-ide",
-  "displayName": "AIO · AI CLI 工作台",
-  "description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
-  "version": "0.1.38",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "0.1.39",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",
@@ -24,19 +24,19 @@
   },
   "contributes": {
     "commands": [
-      { "command": "aio.openTerminal", "category": "AIO", "title": "选择 AI CLI 并打开终端" },
-      { "command": "aio.openOmp", "category": "AIO", "title": "打开 OMP 终端" },
-      { "command": "aio.openClaude", "category": "AIO", "title": "打开 Claude Code 终端" },
-      { "command": "aio.openCodex", "category": "AIO", "title": "打开 Codex 终端" },
-      { "command": "aio.detectClis", "category": "AIO", "title": "检测本机 CLI" },
-      { "command": "aio.copyTerminalSelection", "category": "AIO", "title": "复制终端选区", "icon": "$(copy)", "enablement": "aio.activeCliTerminal && terminalTextSelected" },
-      { "command": "aio.pasteIntoTerminal", "category": "AIO", "title": "粘贴到终端", "icon": "$(clippy)", "enablement": "aio.activeCliTerminal" },
-      { "command": "aio.copyWorkbenchTerminalSelection", "category": "AIO", "title": "复制", "icon": "$(copy)" },
-      { "command": "aio.pasteIntoWorkbenchTerminal", "category": "AIO", "title": "粘贴", "icon": "$(clippy)" },
-      { "command": "aio.referenceInWorkbench", "category": "AIO", "title": "在 AIO 对话中引用路径", "icon": "$(references)" },
-        { "command": "aio.importProjectInWorkbench", "category": "AIO", "title": "在 AIO 中添加项目", "icon": "$(folder-library)" },
-        { "command": "aio.openRegisteredProject", "category": "AIO", "title": "打开已登记项目" },
-      { "command": "aio.openWorkbench", "category": "AIO", "title": "打开完整工作台" }
+      { "command": "aio.openTerminal", "category": "AIO", "title": "%command.openTerminal%" },
+      { "command": "aio.openOmp", "category": "AIO", "title": "%command.openOmp%" },
+      { "command": "aio.openClaude", "category": "AIO", "title": "%command.openClaude%" },
+      { "command": "aio.openCodex", "category": "AIO", "title": "%command.openCodex%" },
+      { "command": "aio.detectClis", "category": "AIO", "title": "%command.detectClis%" },
+      { "command": "aio.copyTerminalSelection", "category": "AIO", "title": "%command.copyTerminalSelection%", "icon": "$(copy)", "enablement": "aio.activeCliTerminal && terminalTextSelected" },
+      { "command": "aio.pasteIntoTerminal", "category": "AIO", "title": "%command.pasteIntoTerminal%", "icon": "$(clippy)", "enablement": "aio.activeCliTerminal" },
+      { "command": "aio.copyWorkbenchTerminalSelection", "category": "AIO", "title": "%command.copy%", "icon": "$(copy)" },
+      { "command": "aio.pasteIntoWorkbenchTerminal", "category": "AIO", "title": "%command.paste%", "icon": "$(clippy)" },
+      { "command": "aio.referenceInWorkbench", "category": "AIO", "title": "%command.referenceInWorkbench%", "icon": "$(references)" },
+        { "command": "aio.importProjectInWorkbench", "category": "AIO", "title": "%command.importProjectInWorkbench%", "icon": "$(folder-library)" },
+        { "command": "aio.openRegisteredProject", "category": "AIO", "title": "%command.openRegisteredProject%" },
+      { "command": "aio.openWorkbench", "category": "AIO", "title": "%command.openWorkbench%" }
     ],
     "menus": {
       "view/title": [
@@ -65,15 +65,15 @@
       "activitybar": [{ "id": "aio", "title": "AIO", "icon": "media/activity.svg" }]
     },
     "views": {
-      "aio": [{ "id": "aio.sidebarLaunchers", "name": "编程智能体", "when": "isWorkspaceTrusted" }],
+      "aio": [{ "id": "aio.sidebarLaunchers", "name": "%view.codingAgents%", "when": "isWorkspaceTrusted" }],
       "explorer": [{ "id": "aio.launchers", "name": "AIO", "when": "isWorkspaceTrusted" }]
     },
     "configuration": {
       "title": "AIO",
       "properties": {
-        "aio.ompPath": { "type": "string", "default": "", "scope": "machine", "description": "OMP 可执行文件的绝对路径。留空时自动检测。" },
-        "aio.claudePath": { "type": "string", "default": "", "scope": "machine", "description": "Claude Code 可执行文件的绝对路径。留空时自动检测。" },
-        "aio.codexPath": { "type": "string", "default": "", "scope": "machine", "description": "Codex 可执行文件的绝对路径。留空时自动检测。" }
+        "aio.ompPath": { "type": "string", "default": "", "scope": "machine", "description": "%config.ompPath%" },
+        "aio.claudePath": { "type": "string", "default": "", "scope": "machine", "description": "%config.claudePath%" },
+        "aio.codexPath": { "type": "string", "default": "", "scope": "machine", "description": "%config.codexPath%" }
       }
     }
   }

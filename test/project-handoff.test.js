@@ -109,7 +109,7 @@ test('workbench validates the clicked project, writes a short handoff and opens 
   assert.equal(handoff.target, target)
   assert.deepEqual(handoff.projects, ['D:\\projects\\one', target])
   assert.equal(await host.activateProjectPath('D:\\not-registered'), false)
-  assert.match(warnings.at(-1), /不是 AIO 已登记/)
+  assert.match(warnings.at(-1), /(not registered in AIO|不是 AIO 已登记)/)
   host.panel = undefined
   host.service = undefined
   host.dispose()

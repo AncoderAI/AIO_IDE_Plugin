@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { CLI_DEFINITIONS, discoverCli, discoverClis } = require('./discovery')
+const { localize } = require('./localize')
 const cliTerminals = new WeakSet()
 
 async function folderPathFromUri(uri) {
@@ -27,7 +28,7 @@ async function chooseWorkingDirectory(vscode, uri) {
   if (folders.length > 1) {
     const selected = await vscode.window.showQuickPick(
       folders.map((folder) => ({ label: folder.name, description: folder.uri.fsPath, folder })),
-      { placeHolder: '选择 AI 编程 CLI 的项目目录' },
+      { placeHolder: localize(vscode, 'chooseProjectFolder') },
     )
     return selected?.folder.uri.fsPath
   }
@@ -36,7 +37,7 @@ async function chooseWorkingDirectory(vscode, uri) {
     canSelectFiles: false,
     canSelectFolders: true,
     canSelectMany: false,
-    openLabel: '在此打开 AI 编程 CLI',
+    openLabel: localize(vscode, 'openCliHere'),
   })
   return selected?.[0]?.fsPath
 }
@@ -44,7 +45,7 @@ async function chooseWorkingDirectory(vscode, uri) {
 function terminalLaunch(executable, platform = process.platform, environment = process.env, extraArgs = []) {
   const extension = path.extname(executable).toLowerCase()
   if (platform === 'win32' && (extension === '.cmd' || extension === '.bat')) {
-    if (extraArgs.some(argument => /["\u0000-\u001f]/.test(argument))) throw new Error('CLI 启动参数包含不支持的字符')
+    if (extraArgs.some(argument => /["\u0000-\u001f]/.test(argument))) throw new Error(localize(undefined, 'invalidCliArgument'))
     const argumentNames = extraArgs.map((_, index) => 'AIO_CLI_ARG_' + index)
     return {
       shellPath: environment.ComSpec || 'C:\\Windows\\System32\\cmd.exe',
@@ -71,16 +72,16 @@ function ompThemeEnvironment(vscode) {
 
 async function requireTrustedWorkspace(vscode) {
   if (vscode.workspace.isTrusted !== false) return true
-  await vscode.window.showWarningMessage('AIO 无法在未受信任的工作区中启动本机 AI 编程 CLI。')
+  await vscode.window.showWarningMessage(localize(vscode, 'untrustedWorkspace'))
   return false
 }
 
 async function showMissingCli(vscode, definition) {
   const action = await vscode.window.showWarningMessage(
-    `未找到 ${definition.label}。请安装该 CLI，或配置 aio.${definition.setting}。`,
-    '打开设置',
+    localize(vscode, 'missingCli', definition),
+    localize(vscode, 'openSettings'),
   )
-  if (action === '打开设置') {
+  if (action === localize(vscode, 'openSettings')) {
     await vscode.commands.executeCommand('workbench.action.openSettings', `aio.${definition.setting}`)
   }
 }
@@ -121,16 +122,16 @@ async function selectCli(vscode) {
   const results = await discoverClis(configuration)
   const selected = await vscode.window.showQuickPick(results.map((result) => ({
     label: result.label,
-    description: result.executable || '未找到',
+    description: result.executable || localize(vscode, 'notFound'),
     id: result.id,
-  })), { placeHolder: '选择一个 AI 编程 CLI' })
+  })), { placeHolder: localize(vscode, 'chooseCli') })
   return selected?.id
 }
 
 async function reportDetection(vscode) {
   const results = await discoverClis(vscode.workspace.getConfiguration('aio'))
   const summary = results
-    .map((result) => `${result.label}：${result.executable || '未找到'}`)
+    .map((result) => `${result.label}: ${result.executable || localize(vscode, 'notFound')}`)
     .join(' | ')
   await vscode.window.showInformationMessage(summary)
   return results

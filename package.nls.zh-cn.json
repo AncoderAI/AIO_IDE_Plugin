@@ -1,0 +1,21 @@
+{
+  "extension.displayName": "AIO · AI CLI 工作台",
+  "extension.description": "在项目终端中打开本机 OMP、Claude Code 和 Codex，或进入 AIO 工作台。",
+  "command.openTerminal": "选择 AI CLI 并打开终端",
+  "command.openOmp": "打开 OMP 终端",
+  "command.openClaude": "打开 Claude Code 终端",
+  "command.openCodex": "打开 Codex 终端",
+  "command.detectClis": "检测本机 CLI",
+  "command.copyTerminalSelection": "复制终端选区",
+  "command.pasteIntoTerminal": "粘贴到终端",
+  "command.copy": "复制",
+  "command.paste": "粘贴",
+  "command.referenceInWorkbench": "在 AIO 对话中引用路径",
+  "command.importProjectInWorkbench": "在 AIO 中添加项目",
+  "command.openRegisteredProject": "打开已登记项目",
+  "command.openWorkbench": "打开完整工作台",
+  "view.codingAgents": "编程智能体",
+  "config.ompPath": "OMP 可执行文件的绝对路径。留空时自动检测。",
+  "config.claudePath": "Claude Code 可执行文件的绝对路径。留空时自动检测。",
+  "config.codexPath": "Codex 可执行文件的绝对路径。留空时自动检测。"
+}

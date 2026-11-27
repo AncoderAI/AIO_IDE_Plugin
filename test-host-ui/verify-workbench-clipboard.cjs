@@ -32,17 +32,18 @@ async function prepareClaudeFixture(frame, executable) {
 }
 
 async function reopenWorkbench(window, oldFrame) {
-  const tab = window.getByRole('tab', { name: /AIO 工作台/i }).first();
+  const tab = window.getByRole('tab', { name: /AIO (工作台|Workbench)/i }).first();
   await tab.click({ button: 'middle' });
   await waitFor(() => !window.frames().includes(oldFrame), 'The original AIO workbench did not close.');
   // The service persists plugin state during its graceful stdin shutdown.
   await new Promise(resolve => setTimeout(resolve, 1000));
   const activity = window.locator('.activitybar');
   const sidebar = window.locator('.part.sidebar');
-  if (!(await sidebar.getByText('完整工作台', { exact: true }).isVisible().catch(() => false))) {
+  const workbenchEntry = sidebar.getByText(/^(完整工作台|Full Workbench)$/).first();
+  if (!(await workbenchEntry.isVisible().catch(() => false))) {
     await activity.getByRole('tab', { name: /^AIO\b/i }).click();
   }
-  await sidebar.getByText('完整工作台', { exact: true }).click();
+  await workbenchEntry.click();
   return aioFrame(window);
 }
 

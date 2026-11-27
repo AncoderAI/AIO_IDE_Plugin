@@ -11,6 +11,7 @@ const { LazyHistory, key, previewKey, providers, queryWithNode } = require('./la
 const { openCli } = require('./launcher')
 const { PreviewGroupController } = require('./preview-group')
 const { resolveDroppedDirectories, resolveDroppedReferences, validFileDropRequest } = require('./file-drop')
+const { localize } = require('./localize')
 const {
   HANDOFF_TTL_MS, clearProjectHandoff, currentWorkspaceMatches, projectRoot, registeredProject,
   projectFolderUri, samePath, storeProjectHandoff, uniquePaths,
@@ -77,7 +78,7 @@ async function resolveNodeRuntime(options = {}) {
       if (versionAtLeast(version)) return { executable: candidate, runAsNode: false }
     } catch {}
   }
-  throw new Error('AIO 工作台需要 Node.js 22.13 或更高版本。请安装 Node.js 22/24 并加入系统 PATH。')
+  throw new Error(localize(undefined, 'nodeRequired'))
 }
 
 class WorkbenchService extends EventEmitter {
@@ -90,6 +91,7 @@ class WorkbenchService extends EventEmitter {
     this.lines = undefined
     this.stopping = false
     this.disconnected = false
+    this.localize = options.localize || ((key, values) => localize(undefined, key, values))
   }
 
   async start() {
@@ -115,7 +117,7 @@ class WorkbenchService extends EventEmitter {
     this.child.stdout.on('error', (error) => this.disconnect(errorMessage(error)))
     this.child.once('error', (error) => this.disconnect(errorMessage(error)))
     this.child.once('exit', (code, signal) => {
-      if (!this.stopping) this.disconnect(`AIO 工作台服务已退出 (${signal || (code ?? 'unknown')})`)
+      if (!this.stopping) this.disconnect(this.localize('serviceExited', { reason: signal || (code ?? 'unknown') }))
       this.emit('exit', { code, signal })
     })
     this.lines = readline.createInterface({ input: this.child.stdout, crlfDelay: Infinity })
@@ -123,9 +125,9 @@ class WorkbenchService extends EventEmitter {
   }
 
   acceptLine(line) {
-    if (Buffer.byteLength(line) > MAX_RESPONSE_BYTES) return this.disconnect('AIO 工作台服务返回的数据超过限制')
+    if (Buffer.byteLength(line) > MAX_RESPONSE_BYTES) return this.disconnect(this.localize('responseTooLarge'))
     let message
-    try { message = JSON.parse(line) } catch { return this.disconnect('AIO 工作台服务返回了无效数据') }
+    try { message = JSON.parse(line) } catch { return this.disconnect(this.localize('invalidResponse')) }
     if (message && (typeof message.id === 'number' || typeof message.id === 'string')) {
       const request = this.pending.get(message.id)
       if (!request) return
@@ -142,15 +144,15 @@ class WorkbenchService extends EventEmitter {
   }
 
   request(channel, args) {
-    if (this.disconnected) return Promise.reject(new Error('AIO 工作台服务不可用'))
-    if (!this.child?.stdin?.writable) return Promise.reject(new Error('AIO 工作台服务不可用'))
+    if (this.disconnected) return Promise.reject(new Error(this.localize('serviceUnavailable')))
+    if (!this.child?.stdin?.writable) return Promise.reject(new Error(this.localize('serviceUnavailable')))
     const id = this.nextId++
     const frame = JSON.stringify({ id, channel, args }) + '\n'
-    if (Buffer.byteLength(frame) > MAX_REQUEST_BYTES) return Promise.reject(new Error('AIO 工作台请求超过限制'))
+    if (Buffer.byteLength(frame) > MAX_REQUEST_BYTES) return Promise.reject(new Error(this.localize('requestTooLarge')))
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(new Error('AIO 工作台服务响应超时'))
+        reject(new Error(this.localize('requestTimeout')))
       }, REQUEST_TIMEOUT_MS)
       timer.unref?.()
       this.pending.set(id, { resolve, reject, timer })
@@ -194,7 +196,7 @@ class WorkbenchService extends EventEmitter {
     timer.unref?.()
     child.once('exit', () => clearTimeout(timer))
     this.child = undefined
-    this.disconnect('AIO 工作台已关闭')
+    this.disconnect(this.localize('workbenchClosed'))
   }
 }
 
@@ -250,7 +252,8 @@ class WorkbenchHost {
     this.projectSwitch = undefined
     this.previewGroup = options.previewGroupController || new PreviewGroupController(vscode, context, options.previewGroup)
     this.previewReadyPanels = new WeakSet()
-    this.log = vscode.window.createOutputChannel('AIO 工作台')
+    this.t = (key, values) => localize(vscode, key, values)
+    this.log = vscode.window.createOutputChannel(this.t('workbenchTitle'))
   }
 
   onDidChangePanel(listener) {
@@ -304,12 +307,12 @@ class WorkbenchHost {
 
   async insertDroppedCandidates(candidates) {
     if (!this.panel || !this.service) {
-      await this.vscode.window.showWarningMessage('请先打开 AIO 完整工作台，再引用文件或文件夹。')
+      await this.vscode.window.showWarningMessage(this.t('openWorkbenchFirstForReference'))
       return false
     }
     const references = await resolveDroppedReferences(this.vscode, path, candidates)
     if (!references.length) {
-      await this.vscode.window.showWarningMessage('所选项目不在当前 VS Code 工作区中，或已经不存在。')
+      await this.vscode.window.showWarningMessage(this.t('referenceOutsideWorkspace'))
       return false
     }
     const id = ++this.referenceSequence
@@ -331,18 +334,18 @@ class WorkbenchHost {
       }
     }
     const inserted = await result
-    if (!inserted) await this.vscode.window.showWarningMessage('当前工作台没有可接收文件引用的对话框或终端输入区。')
+    if (!inserted) await this.vscode.window.showWarningMessage(this.t('noReferenceInput'))
     return inserted
   }
 
   async addProjectCandidates(candidates, allowOutsideWorkspace = false) {
     if (!this.panel || !this.service) {
-      await this.vscode.window.showWarningMessage('请先打开 AIO 完整工作台，再添加项目。')
+      await this.vscode.window.showWarningMessage(this.t('openWorkbenchFirstForProject'))
       return 0
     }
     const directories = await resolveDroppedDirectories(this.vscode, path, candidates, !allowOutsideWorkspace)
     if (!directories.length) {
-      await this.vscode.window.showWarningMessage('请拖入有效的文件夹。工作台内只接受当前 VS Code 工作区中的目录。')
+      await this.vscode.window.showWarningMessage(this.t('invalidProjectDrop'))
       return 0
     }
     await this.options.projectRegistry?.markActivePaths?.(directories, true)
@@ -375,17 +378,17 @@ class WorkbenchHost {
     const projects = await this.service.request('projects:list-initial', [])
     const project = registeredProject(path, projects, requestedPath)
     if (!project) {
-      await this.vscode.window.showWarningMessage('该目录不是 AIO 已登记的项目。')
+      await this.vscode.window.showWarningMessage(this.t('projectNotRegistered'))
       return false
     }
     const target = projectRoot(project)
     const roots = uniquePaths(path, projects.map(projectRoot))
     if (currentWorkspaceMatches(this.vscode, path, target)) return true
-    if (!this.context.globalState) throw new Error('AIO 项目切换状态不可用')
+    if (!this.context.globalState) throw new Error(this.t('projectSwitchUnavailable'))
     const uri = projectFolderUri(this.vscode, path, target)
     const stat = await this.vscode.workspace.fs.stat(uri)
     const fileType = this.vscode.FileType || { Directory: 2 }
-    if (!(stat.type & fileType.Directory)) throw new Error('AIO 项目目录已经不存在')
+    if (!(stat.type & fileType.Directory)) throw new Error(this.t('projectMissing'))
     await storeProjectHandoff(this.context, path, {
       target,
       projects: roots,
@@ -426,7 +429,7 @@ class WorkbenchHost {
       if (groups.length > 1) await this.vscode.commands.executeCommand('workbench.action.focusLastEditorGroup')
       await this.vscode.commands.executeCommand('workbench.action.newGroupRight')
     }
-    const panel = this.vscode.window.createWebviewPanel('aio.workbench', 'AIO 工作台', reuse ? last.viewColumn : this.vscode.ViewColumn.Active, {
+    const panel = this.vscode.window.createWebviewPanel('aio.workbench', this.t('workbenchTitle'), reuse ? last.viewColumn : this.vscode.ViewColumn.Active, {
       enableScripts: true,
       retainContextWhenHidden: true,
       enableCommandUris: false,
@@ -495,7 +498,7 @@ class WorkbenchHost {
     const servicePath = path.join(serviceRoot, 'workbench-service.cjs')
     const indexPath = path.join(uiRoot, 'index.html')
     if (!fs.existsSync(servicePath) || !fs.existsSync(indexPath)) {
-      throw new Error('AIO 工作台资源未构建。请先运行 npm run build:workbench。')
+      throw new Error(this.t('resourcesMissing'))
     }
     const storageUri = this.context.storageUri || this.context.globalStorageUri
     const source = await fs.promises.readFile(indexPath, 'utf8')
@@ -513,10 +516,11 @@ class WorkbenchHost {
         resourceRoot: serviceRoot,
         servicePath,
         log: this.log,
+        localize: this.t,
         ...this.options.service,
       })
       this.service = service
-      if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
+      if (this.panel !== panel) throw new Error(this.t('panelClosed'))
       service.on('event', ({ event, payload }) => {
         if (this.service === service && this.panel === panel) this.postEvent(event, payload, panel)
       })
@@ -529,9 +533,9 @@ class WorkbenchHost {
       const fileDropUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'file-drop.js'))))
       const panelScriptUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.js'))))
       const panelStyleUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'panel-auto-hide.css'))))
-      if (this.panel !== panel || this.service !== service) throw new Error('AIO 工作台面板已关闭')
+      if (this.panel !== panel || this.service !== service) throw new Error(this.t('panelClosed'))
       const ready = fs.promises.mkdir(profilePath, { recursive: true }).then(() => {
-        if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
+        if (this.panel !== panel) throw new Error(this.t('panelClosed'))
         return service.start()
       })
       const messageDisposable = panel.webview.onDidReceiveMessage((message) => {
@@ -541,9 +545,9 @@ class WorkbenchHost {
       const historyUri = panel.webview.asWebviewUri(this.vscode.Uri.file(this.context.asAbsolutePath(path.join('src', 'history-view.js'))))
       panel.webview.html = renderWorkbenchHtml(source, panel.webview, uiUri, bridgeUri, fileDropUri, panelScriptUri, panelStyleUri, historyUri)
       await ready
-      if (this.panel !== panel) throw new Error('AIO 工作台面板已关闭')
+      if (this.panel !== panel) throw new Error(this.t('panelClosed'))
       this.projectSync = Promise.resolve(this.options.projectRegistry?.syncService?.(service)).catch((error) => {
-        if (this.service === service) this.log.appendLine('AIO 项目同步失败 ' + errorMessage(error))
+        if (this.service === service) this.log.appendLine(this.t('projectSyncFailed', { error: errorMessage(error) }))
       })
       this.notifyPanelChanged()
       return panel
@@ -610,7 +614,7 @@ class WorkbenchHost {
             await panel.webview.postMessage({ type: 'aio:project-drop-response', id: message.id, added })
           }
         } catch (error) {
-          this.log.appendLine(`AIO 项目导入失败: ${errorMessage(error)}`)
+          this.log.appendLine(this.t('projectImportFailed', { error: errorMessage(error) }))
           if (this.panel === panel && this.service === service) {
             await panel.webview.postMessage({
               type: 'aio:project-drop-response', id: message.id, added: 0, error: errorMessage(error),
@@ -625,7 +629,7 @@ class WorkbenchHost {
           await panel.webview.postMessage({ type: 'aio:file-drop-response', id: message.id, references })
         }
       } catch (error) {
-        this.log.appendLine(`AIO 文件引用失败: ${errorMessage(error)}`)
+        this.log.appendLine(this.t('referenceFailed', { error: errorMessage(error) }))
         if (this.panel === panel && this.service === service) {
           await panel.webview.postMessage({
             type: 'aio:file-drop-response', id: message.id, references: [], error: errorMessage(error),
@@ -668,10 +672,10 @@ class WorkbenchHost {
     if (['aio-history:cached', 'aio-history:list', 'aio-history:resume'].includes(channel)) {
       const [folder, provider, id] = args
       if (this.vscode.workspace.isTrusted === false || typeof folder !== 'string' ||
-          !path.isAbsolute(folder) || !providers.has(provider)) throw new Error('无效的历史会话请求')
+          !path.isAbsolute(folder) || !providers.has(provider)) throw new Error(this.t('invalidHistoryRequest'))
       const records = await service.request('projects:list-initial', [])
       const project = records.find(row => key(row.primaryFolder || row.path) === key(folder))
-      if (!project) throw new Error('该目录不是 AIO 已登记的项目')
+      if (!project) throw new Error(this.t('projectNotRegisteredShort'))
       const cwd = project.primaryFolder || project.path
       const previews = this.context.workspaceState
       const cacheKey = previewKey(cwd, provider)
@@ -708,15 +712,15 @@ class WorkbenchHost {
       if (removed && project) await this.options.projectRegistry?.markRemovedPath?.(project.primaryFolder || project.path)
       return removed
     }
-    if (channel === 'projects:add-selected') throw new Error('请通过 VS Code 的目录选择器添加项目')
+    if (channel === 'projects:add-selected') throw new Error(this.t('addProjectWithPicker'))
     if (channel === 'projects:add') {
-      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, title: '选择 AIO 项目目录' })
+      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, title: this.t('chooseAioProject') })
       if (!selection?.[0]) return null
       channel = 'projects:add-selected'
       args = [selection[0].fsPath]
     } else if (channel === 'coding-plugins:choose-executable') {
       if (args.length) throw new TypeError('Invalid executable picker request')
-      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false, canSelectMany: false, title: '选择 AI CLI 可执行文件', filters: process.platform === 'win32' ? { 'Windows 可执行文件': ['exe'] } : undefined })
+      const selection = await this.vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false, canSelectMany: false, title: this.t('chooseCliExecutable'), filters: process.platform === 'win32' ? { [this.t('windowsExecutable')]: ['exe'] } : undefined })
       return selection?.[0]?.fsPath || null
     } else if (channel === 'app:take-open-folder') {
       if (args.length) throw new TypeError('Invalid open folder request')
@@ -725,7 +729,7 @@ class WorkbenchHost {
       channel = 'projects:add-selected'
       args = [folder]
     }
-    if (!service) throw new Error('AIO 工作台服务不可用')
+    if (!service) throw new Error(this.t('serviceUnavailable'))
     if (channel === 'projects:list-worktrees') {
       try {
         return await service.request(channel, args)

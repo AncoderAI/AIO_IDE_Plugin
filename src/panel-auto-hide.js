@@ -6,6 +6,14 @@
   'use strict'
 
   const PROTECTED_REVEAL = '.composer, .coding-cli-composer, .terminal-drawer, .terminal-surface, .xterm'
+  const PANEL_COPY = {
+    en: { left: 'Show sidebar', preview: 'File preview', showPreview: 'Show file preview' },
+    'zh-CN': { left: '显示左侧栏', preview: '文件预览', showPreview: '显示文件预览' },
+  }
+
+  function panelCopy(language) {
+    return PANEL_COPY[String(language).toLowerCase().startsWith('zh') ? 'zh-CN' : 'en']
+  }
 
   function shouldSuppressEdgeReveal(elements) {
     return Array.from(elements || []).some((element) =>
@@ -45,12 +53,19 @@
     let pagePinned = false
     let previewReady = false
 
+    const updateLocalizedControls = () => {
+      const copy = panelCopy(document.documentElement.lang)
+      leftToggle.setAttribute('aria-label', copy.left)
+      leftToggle.title = copy.left
+      previewEdge.textContent = copy.preview
+      previewEdge.setAttribute('aria-label', copy.showPreview)
+      previewEdge.title = copy.preview
+    }
+
     const createLeftToggle = () => {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = 'icon-button icon-button--regular aio-panel-toggle-left'
-      button.setAttribute('aria-label', '显示左侧栏')
-      button.title = '显示左侧栏'
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>'
       return button
     }
@@ -60,9 +75,7 @@
     const previewEdge = document.createElement('button')
     previewEdge.type = 'button'
     previewEdge.className = 'aio-file-preview-edge'
-    previewEdge.textContent = '文件预览'
-    previewEdge.setAttribute('aria-label', '显示文件预览')
-    previewEdge.title = '文件预览'
+    updateLocalizedControls()
     const requestFilePreview = () => root.dispatchEvent(new root.CustomEvent('aio:file-preview-request'))
     previewEdge.addEventListener('pointerenter', requestFilePreview)
     previewEdge.addEventListener('focus', requestFilePreview)
@@ -366,9 +379,12 @@
       if (relevant) refresh()
     })
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['inert'] })
+    const localeObserver = new root.MutationObserver(updateLocalizedControls)
+    localeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] })
     refresh()
     return () => {
       observer.disconnect()
+      localeObserver.disconnect()
       if (introTimer) root.clearTimeout(introTimer)
       leftToggle.remove()
       rightToggle?.classList.remove('aio-panel-toggle-right')
@@ -380,5 +396,5 @@
     }
   }
 
-  return { installAutoHidePanels, shouldSuppressEdgeReveal }
+  return { installAutoHidePanels, panelCopy, shouldSuppressEdgeReveal }
 })

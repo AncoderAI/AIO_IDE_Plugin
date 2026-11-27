@@ -2,6 +2,7 @@
 
 const MIME_TYPES = ['text/uri-list', 'application/vnd.code.uri-list', 'resourceurls', 'codefiles']
 const MAX_REFERENCE_ITEMS = 16
+const { localize } = require('./localize')
 
 async function readDropCandidates(dataTransfer) {
   const values = Object.create(null)
@@ -14,7 +15,7 @@ async function readDropCandidates(dataTransfer) {
   return extractDropCandidates({ getData: (type) => values[type] || '' })
 }
 
-function resourceCandidates(values) {
+function resourceCandidates(values, vscode) {
   const candidates = []
   const seen = new Set()
   const visit = (value) => {
@@ -23,7 +24,7 @@ function resourceCandidates(values) {
     const uri = value.toString()
     if (!seen.has(uri)) {
       seen.add(uri)
-      if (candidates.length >= MAX_REFERENCE_ITEMS) throw new RangeError(`AIO 一次最多引用 ${MAX_REFERENCE_ITEMS} 个文件或文件夹`)
+      if (candidates.length >= MAX_REFERENCE_ITEMS) throw new RangeError(localize(vscode, 'referenceLimit', { count: MAX_REFERENCE_ITEMS }))
       candidates.push({ kind: 'uri', value: uri })
     }
   }
@@ -33,14 +34,14 @@ function resourceCandidates(values) {
 
 function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
   const emitter = new vscode.EventEmitter()
-  const dropTarget = new vscode.TreeItem('拖到此处引用到工作台')
+  const dropTarget = new vscode.TreeItem(localize(vscode, 'referenceDropTarget'))
   dropTarget.id = 'aio.referenceDropTarget'
-  dropTarget.description = '文件或文件夹路径'
+  dropTarget.description = localize(vscode, 'fileOrFolderPath')
   dropTarget.iconPath = new vscode.ThemeIcon('references')
   dropTarget.contextValue = 'aioReferenceDropTarget'
-  const projectTarget = new vscode.TreeItem('拖入文件夹以添加项目')
+  const projectTarget = new vscode.TreeItem(localize(vscode, 'projectDropTarget'))
   projectTarget.id = 'aio.projectImportDropTarget'
-  projectTarget.description = '不会更改 VS Code 工作区'
+  projectTarget.description = localize(vscode, 'workspaceUnchanged')
   projectTarget.iconPath = new vscode.ThemeIcon('folder-library')
   projectTarget.contextValue = 'aioProjectImportDropTarget'
 
@@ -75,7 +76,7 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
         return
       }
       if (!candidates.length) {
-        await vscode.window.showWarningMessage(target === projectTarget ? '没有可添加的文件夹路径。' : '没有可引用的文件或文件夹路径。')
+        await vscode.window.showWarningMessage(localize(vscode, target === projectTarget ? 'noProjectPaths' : 'noReferencePaths'))
         return
       }
       if (target === projectTarget) await addProjects(candidates)
@@ -91,26 +92,26 @@ function registerFileReferenceTree(vscode, context, workbenchHost, entries) {
     workbenchHost.onDidChangePanel(() => emitter.fire(undefined)),
     vscode.commands.registerCommand('aio.referenceInWorkbench', async (...resources) => {
       let candidates
-      try { candidates = resourceCandidates(resources) }
+      try { candidates = resourceCandidates(resources, vscode) }
       catch (error) {
         await vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error))
         return false
       }
       if (!candidates.length) {
-        await vscode.window.showWarningMessage('请在 Explorer 中选择要引用的文件或文件夹。')
+        await vscode.window.showWarningMessage(localize(vscode, 'selectReference'))
         return false
       }
       return insert(candidates)
     }),
     vscode.commands.registerCommand('aio.importProjectInWorkbench', async (...resources) => {
       let candidates
-      try { candidates = resourceCandidates(resources) }
+      try { candidates = resourceCandidates(resources, vscode) }
       catch (error) {
         await vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error))
         return 0
       }
       if (!candidates.length) {
-        await vscode.window.showWarningMessage('请在 Explorer 中选择要添加的文件夹。')
+        await vscode.window.showWarningMessage(localize(vscode, 'selectProject'))
         return 0
       }
       return addProjects(candidates)

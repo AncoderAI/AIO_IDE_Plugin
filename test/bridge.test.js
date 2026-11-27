@@ -248,7 +248,7 @@ test('workbench service uses NDJSON request response and event routing', async (
   assert.equal(event.event, 'desktop-event')
   assert.equal(event.payload.event, 'sessions:changed')
   assert.doesNotThrow(() => child.stdin.emit('error', new Error('closed pipe')))
-  await assert.rejects(service.request('projects:list', []), /服务不可用/)
+  await assert.rejects(service.request('projects:list', []), /(service is unavailable|服务不可用)/)
   service.stop()
 })
 

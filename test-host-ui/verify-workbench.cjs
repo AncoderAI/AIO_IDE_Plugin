@@ -133,8 +133,8 @@ async function main() {
     const sidebar = window.locator('.part.sidebar');
     if (process.env.AIO_TEST_PREVIEW_GROUP !== '1') {
       await aioTab.click();
-      for (const label of ['OMP', 'Claude Code', 'Codex', '完整工作台']) {
-        await sidebar.getByText(label, { exact: true }).waitFor({ state: 'visible' });
+      for (const label of ['OMP', 'Claude Code', 'Codex', /^(完整工作台|Full Workbench)$/]) {
+        await sidebar.getByText(label, { exact: typeof label === 'string' }).waitFor({ state: 'visible' });
       }
     }
     const errors = [];
@@ -248,7 +248,7 @@ async function main() {
               const screen = window.locator('.panel .xterm-screen').last();
               const box = await screen.boundingBox();
               assert.ok(box, 'The OMP terminal screen must be visible.');
-              const copy = window.locator('.panel .title-actions').getByRole('button', { name: '复制终端选区' });
+              const copy = window.locator('.panel .title-actions').getByRole('button', { name: /^(复制终端选区|Copy Terminal Selection)$/ });
               await copy.waitFor({ state: 'visible' });
               let copied = '';
               const marker = 'AIO-COPY';
@@ -275,7 +275,7 @@ async function main() {
               assert.ok(copied.includes(marker), 'The terminal title copy action did not copy the mouse selection.');
 
               await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), token);
-              await window.getByRole('button', { name: '粘贴到终端' }).click();
+              await window.getByRole('button', { name: /^(粘贴到终端|Paste into Terminal)$/ }).click();
               await new Promise(resolve => setTimeout(resolve, 300));
               assert.equal(await fs.stat(path.join(project, cli + '.focus')).catch(() => null), null,
                 'Pasting must fill the CLI input without submitting it.');

@@ -25,7 +25,7 @@ test('collects all selected Explorer URIs for the context command', () => {
   assert.deepEqual(resourceCandidates([uri('file:///one'), [uri('file:///one'), uri('file:///two')]]), [
     { kind: 'uri', value: 'file:///one' }, { kind: 'uri', value: 'file:///two' },
   ])
-  assert.throws(() => resourceCandidates([Array.from({ length: 17 }, (_, index) => uri(`file:///${index}`))]), /最多引用 16/)
+  assert.throws(() => resourceCandidates([Array.from({ length: 17 }, (_, index) => uri(`file:///${index}`))]), /at most 16/)
 })
 
 test('registers a native drop target while workbench is open and routes both entry points', async () => {

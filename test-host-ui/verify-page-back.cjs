@@ -102,7 +102,7 @@ async function verifyPageBack(window, initialFrame, project) {
   const executable = await compileClaudeFixture(project);
   await prepareClaudeFixture(initialFrame, executable);
   const frame = await reopenWorkbench(window, initialFrame);
-  const workbenchTab = window.locator('.tabs-container .tab').filter({ hasText: 'AIO 工作台' });
+  const workbenchTab = window.locator('.tabs-container .tab').filter({ hasText: /AIO (工作台|Workbench)/ });
   assert.equal(await workbenchTab.count(), 1);
   const initialTitle = await pageTitle(frame);
   assert.notEqual(initialTitle, '项目');

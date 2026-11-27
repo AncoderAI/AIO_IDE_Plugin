@@ -5,6 +5,7 @@ const path = require('node:path')
 const os = require('node:os')
 const { execFile } = require('node:child_process')
 const { promisify } = require('node:util')
+const { localize } = require('./localize')
 
 const providers = new Set(['omp', 'claude', 'codex'])
 const { createHash } = require('node:crypto')
@@ -76,7 +77,7 @@ class LazyHistory {
   }
 
   async list(cwd, provider, additionalBuckets = []) {
-    if (!providers.has(provider) || !path.isAbsolute(cwd)) throw new Error('无效的历史会话请求')
+    if (!providers.has(provider) || !path.isAbsolute(cwd)) throw new Error(localize(undefined, 'invalidHistoryRequest'))
     const record = kind => this.onRead({ cwd, provider, kind })
     const files = provider === 'codex'
       ? await this.listCodex(cwd, record)
@@ -143,7 +144,7 @@ class LazyHistory {
 
   resumeArgs(cwd, provider, id) {
     const row = this.catalogs.get(JSON.stringify([key(cwd), provider]))?.get(id)
-    if (!row) throw new Error('请先加载该项目的历史会话')
+    if (!row) throw new Error(localize(undefined, 'loadHistoryFirst'))
     return provider === 'codex' ? ['resume', row.id] : ['--resume', provider === 'omp' ? row.filename : row.id]
   }
 

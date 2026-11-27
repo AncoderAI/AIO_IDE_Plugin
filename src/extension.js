@@ -7,6 +7,7 @@ const { registerFileReferenceTree } = require('./file-reference-tree');
 const path = require('node:path');
 const { resumeProjectHandoff } = require('./project-handoff');
 const { ProjectRegistry } = require('./project-registry');
+const { localize } = require('./localize');
 
 async function activate(context) {
   registerLauncher(vscode, context);
@@ -21,7 +22,7 @@ async function activate(context) {
     ['OMP', 'aio.openOmp'],
     ['Claude Code', 'aio.openClaude'],
     ['Codex', 'aio.openCodex'],
-    ['完整工作台', 'aio.openWorkbench'],
+    [localize(vscode, 'fullWorkbench'), 'aio.openWorkbench'],
   ].map(([label, command]) => {
     const item = new vscode.TreeItem(label);
     item.iconPath = new vscode.ThemeIcon(command === 'aio.openWorkbench' ? 'layout' : 'terminal');

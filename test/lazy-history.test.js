@@ -42,7 +42,7 @@ test('cold workbench routes zero requests to history, then selects only the clic
     'coding:list-summaries', 'app:list-coding-cli-history'].map(channel => invoke(channel)))
   assert.deepEqual(calls, ['projects:list-initial'])
   assert.deepEqual(reads, [])
-  await assert.rejects(invoke('aio-history:resume', [cwd, 'codex', firstId]), /先加载/)
+  await assert.rejects(invoke('aio-history:resume', [cwd, 'codex', firstId]), /(Load this project's history|先加载)/)
   assert.deepEqual(reads, [])
   assert.deepEqual(await invoke('aio-history:list', [cwd, 'codex']), [
     { id: firstId, title: '项目 A 首次输入', updatedAt: 1000 },
@@ -51,8 +51,8 @@ test('cold workbench routes zero requests to history, then selects only the clic
     { cwd, provider: 'codex', kind: 'metadata' }, { cwd, provider: 'codex', kind: 'index' },
   ])
   assert.deepEqual(history.resumeArgs(cwd, 'codex', firstId), ['resume', firstId])
-  assert.throws(() => history.resumeArgs(other, 'codex', firstId), /先加载/)
-  await assert.rejects(invoke('aio-history:list', [path.join(home, 'unknown'), 'claude']), /已登记/)
+  assert.throws(() => history.resumeArgs(other, 'codex', firstId), /(Load this project's history|先加载)/)
+  await assert.rejects(invoke('aio-history:list', [path.join(home, 'unknown'), 'claude']), /(not registered|已登记)/)
   assert.equal(reads.length, 2)
 })
 

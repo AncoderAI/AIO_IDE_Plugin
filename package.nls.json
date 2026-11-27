@@ -1,0 +1,21 @@
+{
+  "extension.displayName": "AIO · AI CLI Workbench",
+  "extension.description": "Open installed OMP, Claude Code, and Codex in project terminals, or enter the AIO workbench.",
+  "command.openTerminal": "Select an AI CLI and Open a Terminal",
+  "command.openOmp": "Open OMP Terminal",
+  "command.openClaude": "Open Claude Code Terminal",
+  "command.openCodex": "Open Codex Terminal",
+  "command.detectClis": "Detect Installed CLIs",
+  "command.copyTerminalSelection": "Copy Terminal Selection",
+  "command.pasteIntoTerminal": "Paste into Terminal",
+  "command.copy": "Copy",
+  "command.paste": "Paste",
+  "command.referenceInWorkbench": "Reference Path in AIO Conversation",
+  "command.importProjectInWorkbench": "Add Project to AIO",
+  "command.openRegisteredProject": "Open Registered Project",
+  "command.openWorkbench": "Open Full Workbench",
+  "view.codingAgents": "Coding Agents",
+  "config.ompPath": "Absolute path to the OMP executable. Leave empty to detect it automatically.",
+  "config.claudePath": "Absolute path to the Claude Code executable. Leave empty to detect it automatically.",
+  "config.codexPath": "Absolute path to the Codex executable. Leave empty to detect it automatically."
+}

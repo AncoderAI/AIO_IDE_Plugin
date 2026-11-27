@@ -48,7 +48,7 @@ async function workbenchSurface(app, startedAt) {
 async function verifySingleWorkbench(surface, testRightCorrection = false) {
   const editorGroups = surface.page.locator('.part.editor .editor-group-container');
   const aioIsRightmost = () => editorGroups.evaluateAll(groups => {
-    const positions = groups.map(group => ({ x: group.getBoundingClientRect().x, aio: group.textContent.includes('AIO 工作台') }));
+    const positions = groups.map(group => ({ x: group.getBoundingClientRect().x, aio: /AIO (工作台|Workbench)/i.test(group.textContent) }));
     const aio = positions.find(position => position.aio);
     return Boolean(aio && aio.x === Math.max(...positions.map(position => position.x)));
   });
@@ -58,7 +58,7 @@ async function verifySingleWorkbench(surface, testRightCorrection = false) {
     if (await frame.evaluate(() => Boolean(window.__TAURI__ && document.querySelector('#root'))).catch(() => false)) frames.push(frame);
   }
   assert.equal(frames.length, 1, 'AIO autostart created more than one workbench Webview.');
-  const tabs = surface.page.locator('.tabs-container .tab').filter({ hasText: 'AIO 工作台' });
+  const tabs = surface.page.locator('.tabs-container .tab').filter({ hasText: /AIO (工作台|Workbench)/i });
   assert.equal(await tabs.count(), 1, 'AIO autostart created more than one editor tab.');
   assert.equal(await aioIsRightmost(), true,
     'AIO workbench was not in the rightmost editor group.');
@@ -69,7 +69,7 @@ async function verifySingleWorkbench(surface, testRightCorrection = false) {
     await waitFor(async () => (await editorGroups.count()) === 3 && await aioIsRightmost(),
     'AIO to move right after creating another editor group');
   }
-  assert.ok(surface.report.text.includes('AIO') || surface.report.text.includes('项目'), 'AIO React workbench did not render.');
+  assert.ok(surface.report.text.includes('AIO') || /项目|Projects/i.test(surface.report.text), 'AIO React workbench did not render.');
 }
 
 async function launch(_electron, code, profile, extensions, workspace) {
@@ -81,13 +81,31 @@ async function launch(_electron, code, profile, extensions, workspace) {
   return _electron.launch({ executablePath: code, env, timeout: 60000, args });
 }
 
-async function runWindow(_electron, code, profile, extensions, workspace, testRightCorrection = false) {
+async function chooseLanguage(frame, current, next) {
+  await frame.locator('.aio-panel-toggle-left').hover();
+  await frame.locator('.sidebar').getByText(current === 'en' ? 'Settings' : '设置', { exact: true }).last().click();
+  await frame.locator('.settings-nav').getByText(current === 'en' ? 'Appearance' : '外观', { exact: true }).click();
+  const selector = frame.locator('select').filter({ has: frame.locator('option[value="zh-CN"]') });
+  await selector.selectOption(next);
+  await frame.waitForFunction(locale => document.documentElement.lang === locale, next);
+  await frame.locator('.aio-file-preview-edge').filter({ hasText: next === 'en' ? /file preview/i : '文件预览' }).waitFor({ state: 'attached' });
+  await waitFor(() => frame.evaluate(async locale => {
+    const settings = await window.__TAURI__.core.invoke('desktop_request', { channel: 'settings:get', args: [] });
+    return settings.locale === locale;
+  }, next), 'saved language');
+}
+
+async function runWindow(_electron, code, profile, extensions, workspace, testRightCorrection = false, language) {
   const startedAt = performance.now();
   const app = await launch(_electron, code, profile, extensions, workspace);
   try {
     await app.firstWindow({ timeout: 60000 });
     const surface = await workbenchSurface(app, startedAt);
     await verifySingleWorkbench(surface, testRightCorrection);
+    if (language) {
+      await surface.frame.waitForFunction(locale => document.documentElement.lang === locale, language);
+      await chooseLanguage(surface.frame, language, language === 'en' ? 'zh-CN' : 'en');
+    }
     const meta = await surface.frame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', { channel: 'app:get-meta', args: [] }));
     return { version: meta.version, visibleMs: surface.visibleMs, readyMs: Math.round(performance.now() - startedAt) };
   } finally {
@@ -109,8 +127,8 @@ async function main() {
   await fs.writeFile(path.join(profile, 'User', 'settings.json'), JSON.stringify({ 'window.restoreWindows': 'none' }));
   await installVsix(code, vsix, [`--user-data-dir=${profile}`, `--extensions-dir=${extensions}`]);
   try {
-    const first = await runWindow(_electron, code, profile, extensions, project);
-    const restart = await runWindow(_electron, code, profile, extensions, project);
+    const first = await runWindow(_electron, code, profile, extensions, project, false, 'zh-CN');
+    const restart = await runWindow(_electron, code, profile, extensions, project, false, 'en');
     const empty = await runWindow(_electron, code, profile, extensions, undefined, true);
     assert.equal(first.version, restart.version);
     assert.equal(restart.version, empty.version);
