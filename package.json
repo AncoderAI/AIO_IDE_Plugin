@@ -2,7 +2,7 @@
   "name": "aio-ide",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "icon": "media/aio.png",
   "publisher": "ancoder",
   "license": "MIT",

@@ -503,11 +503,19 @@ class WorkbenchHost {
     const schedule = () => {
       queue = queue.then(correct).catch(error => this.log.appendLine(errorMessage(error)))
     }
-    this.disposables.push(tabs.onDidChangeTabGroups(schedule))
+    // Cursor also reports focus changes as tab-group changes. Only a change in
+    // group count needs automatic repositioning there.
+    let knownCount = tabs.all.length
+    this.disposables.push(tabs.onDidChangeTabGroups(() => {
+      const count = tabs.all.length
+      if (this.previewGroup.useExplicitWidths && knownCount === count) return
+      knownCount = count
+      schedule()
+    }))
     if (tabs.onDidChangeTabs) this.disposables.push(tabs.onDidChangeTabs(event => { if (event.opened.length && tabs.all.length === 1) schedule() }))
     let lastColumn = panel.viewColumn
     const listener = panel.onDidChangeViewState?.(() => {
-      if (lastColumn === panel.viewColumn) return
+      if (this.previewGroup.useExplicitWidths || lastColumn === panel.viewColumn) return
       lastColumn = panel.viewColumn
       schedule()
     })

@@ -72,7 +72,7 @@ class PreviewGroupController {
     this.vscode = vscode
     this.context = context
     this.options = options
-    this.useExplicitWidths = /cursor/i.test(vscode.env?.appName || '')
+    this.useExplicitWidths = (/cursor/i.test(vscode.env?.appName || '') || vscode.env?.uriScheme === 'cursor')
     this.baselineLayout = undefined
     this.expandedLayout = undefined
     this.panel = undefined
