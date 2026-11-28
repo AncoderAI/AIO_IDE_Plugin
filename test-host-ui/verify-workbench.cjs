@@ -97,7 +97,9 @@ async function main() {
     if (process.env.AIO_TEST_OMP_SELECTION === '1') {
       const fixture = await require('./verify-workbench-clipboard.cjs').compileClaudeFixture(project);
       env.OMP_BINARY = path.join(project, 'omp.exe');
+      env.AIO_CODEX_BINARY = path.join(project, 'codex.exe');
       await fs.copyFile(fixture, env.OMP_BINARY);
+      await fs.copyFile(fixture, env.AIO_CODEX_BINARY);
     }
     if (process.env.AIO_TEST_CODEX_SUBMISSION_EXE) {
       codexFixture = await require('./verify-codex-submission.cjs').createCodexFixture(
@@ -167,7 +169,7 @@ async function main() {
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
         if (process.env.AIO_TEST_OMP_SELECTION === '1') {
-          console.log(await require('./verify-workbench-clipboard.cjs').verifyOmpSelection(window, frame, app));
+          console.log(await require('./verify-workbench-clipboard.cjs').verifyOmpSelection(window, frame, app, project));
           return;
         }
         if (process.env.AIO_TEST_BOT_UI === '1') {

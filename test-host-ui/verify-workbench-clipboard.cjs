@@ -184,37 +184,43 @@ async function verifyWorkbenchClipboard(window, initialFrame, app, project) {
   };
 }
 
-async function verifyOmpSelection(window, initialFrame, app) {
-  await initialFrame.evaluate(() => window.__TAURI__.core.invoke('desktop_request', {
-    channel: 'coding-plugins:set', args: ['omp', 'install'],
-  }));
+async function verifyOmpSelection(window, initialFrame, app, project) {
+  await prepareClaudeFixture(initialFrame, path.join(project, 'clipboard-fixture.exe'));
+  await initialFrame.evaluate(async () => {
+    for (const id of ['omp', 'codex']) await window.__TAURI__.core.invoke('desktop_request', {
+      channel: 'coding-plugins:set', args: [id, 'install'],
+    });
+  });
   const frame = await reopenWorkbench(window, initialFrame);
-  const toolbar = frame.locator('.title-toolbar__actions');
-  await toolbar.getByRole('button', { name: /Toggle terminal|切换终端/i }).click();
-  // The terminal toolbar opens the shell when no agent was selected. The
-  // runtime picker starts OMP in its own terminal.
-  const picker = frame.getByTestId('coding-runtime-select').getByRole('button').first();
-  await picker.click();
-  await frame.getByText('OMP', { exact: true }).last().click();
-  const terminal = frame.locator('.terminal-surface:not([hidden]) .xterm').last();
-  await waitFor(async () => (await terminal.innerText()).includes('AIO-WEBVIEW-COPY'), 'OMP fixture did not write to xterm.');
-  const before = await terminal.boundingBox();
-  const screen = await terminal.locator('.xterm-screen').boundingBox();
-  assert.ok(screen);
-  const y = screen.y + screen.height / 2;
-  await window.mouse.move(screen.x + 2, y);
-  await window.mouse.down();
-  await window.mouse.move(screen.x + Math.min(screen.width - 2, 250), y, { steps: 12 });
-  await window.mouse.up();
-  await frame.locator('.composer-attachment--terminal').waitFor({ state: 'visible' });
-  await new Promise(resolve => setTimeout(resolve, 350));
-  const after = await terminal.boundingBox();
-  assert.ok(before && after);
-  assert.ok(Math.abs(before.height - after.height) < 1, 'Selecting OMP text changed the terminal height.');
-  await app.evaluate(({ clipboard }) => clipboard.writeText(''));
-  await window.keyboard.press('Control+C');
-  assert.match(await readClipboardUntil(app, 'AIO-WEBVIEW-COPY'), /AIO-WEBVIEW-COPY/);
-  return { ompSelectionCopied: true, terminalHeight: after.height };
+  const results = [];
+  for (const cli of ['OMP', 'Claude Code', 'Codex']) {
+    const picker = frame.getByTestId('coding-runtime-select').getByRole('button').first();
+    await picker.click();
+    await frame.getByText(cli, { exact: true }).last().click();
+    await frame.locator('.terminal-tab').filter({ hasText: cli }).last().waitFor();
+    const terminal = frame.locator('.terminal-surface:not([hidden]) .xterm').last();
+    await waitFor(async () => (await terminal.innerText()).includes('AIO-WEBVIEW-COPY'), cli + ' fixture did not write to xterm.');
+    const before = await terminal.boundingBox();
+    const screen = await terminal.locator('.xterm-screen').boundingBox();
+    assert.ok(screen);
+    const y = screen.y + screen.height / 2;
+    await window.mouse.move(screen.x + 2, y);
+    await window.mouse.down();
+    await window.mouse.move(screen.x + Math.min(screen.width - 2, 250), y, { steps: 12 });
+    await window.mouse.up();
+    const attachment = frame.locator('.composer-attachment--terminal:visible');
+    if (cli === 'OMP') await attachment.waitFor();
+    await new Promise(resolve => setTimeout(resolve, 350));
+    const after = await terminal.boundingBox();
+    assert.ok(before && after);
+    assert.ok(Math.abs(before.height - after.height) < 1, cli + ' selection changed the terminal height.');
+    assert.equal(await attachment.count(), cli === 'OMP' ? 1 : 0, cli + ' selection attachment visibility');
+    await app.evaluate(({ clipboard }) => clipboard.writeText(''));
+    await window.keyboard.press('Control+C');
+    assert.match(await readClipboardUntil(app, 'AIO-WEBVIEW-COPY'), /AIO-WEBVIEW-COPY/);
+    results.push({ cli, attachment: cli === 'OMP', beforeHeight: before.height, afterHeight: after.height, copied: true });
+  }
+  return results;
 }
 
 module.exports = {
