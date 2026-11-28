@@ -209,16 +209,15 @@ async function verifyOmpSelection(window, initialFrame, app, project) {
     await window.mouse.move(screen.x + Math.min(screen.width - 2, 250), y, { steps: 12 });
     await window.mouse.up();
     const attachment = frame.locator('.composer-attachment--terminal:visible');
-    if (cli === 'OMP') await attachment.waitFor();
     await new Promise(resolve => setTimeout(resolve, 350));
     const after = await terminal.boundingBox();
     assert.ok(before && after);
     assert.ok(Math.abs(before.height - after.height) < 1, cli + ' selection changed the terminal height.');
-    assert.equal(await attachment.count(), cli === 'OMP' ? 1 : 0, cli + ' selection attachment visibility');
+    assert.equal(await attachment.count(), 0, cli + ' selection attachment visibility');
     await app.evaluate(({ clipboard }) => clipboard.writeText(''));
     await window.keyboard.press('Control+C');
     assert.match(await readClipboardUntil(app, 'AIO-WEBVIEW-COPY'), /AIO-WEBVIEW-COPY/);
-    results.push({ cli, attachment: cli === 'OMP', beforeHeight: before.height, afterHeight: after.height, copied: true });
+    results.push({ cli, attachment: false, beforeHeight: before.height, afterHeight: after.height, copied: true });
   }
   return results;
 }

@@ -172,7 +172,16 @@ async function buildUi() {
                 .replace('const visible = isCurrent && terminalOpen', 'const visible = isCurrent && terminalVisible')
                 .replace('terminalOpen={terminalOpen}', 'terminalOpen={terminalVisible}')
             }
+            // Mouse selections belong to the terminal clipboard, outside the composer.
             return transformed
+              .replace(', type TerminalSelectionContext', '')
+              .replace(/^  const \[projectTerminalSelection, setProjectTerminalSelection\].*\n/m, '')
+              .replace(/^  const terminalSelection = .*\n/m, '')
+              .replace(/^    setProjectTerminalSelection\(\(current\) => current\?\.key === key \? undefined : current\)\n/m, '')
+              .replace(/\n +onSelectionChange=\{\(value\) => setProjectTerminalSelection\([\s\S]*?\)\}/, '')
+              .replace(' terminalSelection={terminalSelection}', '')
+              .replace(' getTerminalContext={() => terminalDrawerRef.current?.readSelectionContext()}', '')
+              .replace(' onClearTerminalSelection={() => { terminalDrawerRef.current?.clearSelection() }}', '')
           }
           if (normalized.endsWith('/src/components/TitleToolbar.tsx')) {
             if (source.includes('onClosePage')) {
@@ -1101,6 +1110,28 @@ function setDefaultTheme(uiOnly = false) {
   }
 }
 
+function patchGeneratedTerminalSelection() {
+  const assets = join(uiOutput, 'assets')
+  const filename = join(assets, readdirSync(assets).find(name => /^main-.*\.js$/.test(name)))
+  let source = readFileSync(filename, 'utf8')
+  const composerAnchor = ',terminalSelection:_a,getTerminalContext:()=>it.current?.readSelectionContext()'
+  if (!source.includes(composerAnchor)) {
+    if (source.includes('readSelectionContext()')) throw new Error('Generated terminal selection anchor changed')
+    return
+  }
+  const anchors = [
+    'const[gt,wn]=r.useState(),_a=Ge&&gt?.key===Qe?gt?.value:void 0,Ht=',
+    'wn(k=>k?.key===o?void 0:k),',
+    ',onSelectionChange:fe=>wn(ke=>he&&fe?{key:o,value:fe}:ke?.key===o?void 0:ke)',
+    composerAnchor,
+    ',onClearTerminalSelection:()=>{it.current?.clearSelection()}',
+  ]
+  if (anchors.some(anchor => !source.includes(anchor))) throw new Error('Generated terminal selection anchors changed')
+  source = source.replace(anchors[0], 'const Ht=')
+  for (const anchor of anchors.slice(1)) source = source.replace(anchor, '')
+  writeFileSync(filename, source)
+}
+
 function updateBotManifest() {
   const filename = join(outputRoot, 'manifest.json')
   const manifest = JSON.parse(readFileSync(filename, 'utf8'))
@@ -1133,6 +1164,7 @@ async function main() {
     patchGeneratedTerminalClipboard()
     return
   }
+  if (process.argv.includes('--patch-terminal-selection')) return patchGeneratedTerminalSelection()
   if (process.argv.includes('--patch-inactive-terminal-output')) {
     patchGeneratedInactiveTerminalOutput()
     return
