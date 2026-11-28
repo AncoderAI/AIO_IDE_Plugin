@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/Github/Ancoder/AIO_IDE_Plugin\\\" && echo \\\"=== HEAD version ===\\\" && git show HEAD:package.json | grep '\\\"version\\\"' && echo \\\"=== install.cmd ===\\\" && cat install.cmd && echo \\\"===...",
+  "error": "Exit code 2\n=== HEAD version ===\n  \"version\": \"0.1.36\",\n=== install.cmd ===\n@echo off\nsetlocal\n\nset \"INSTALLER_URL=https://herdr.dev/install.ps1\"\nset \"CURL_PROTOCOL=--proto =https --tlsv1.2\"\nif defined HERDR_INSTALLER_URL (\n    set \"INSTALLER_URL=%HERDR_INSTALLER_URL%\"\n    set \"CURL_PROTOCOL=--proto =http,https\"\n)\nset \"INSTALLER_PATH=%TEMP%\\herdr-install-%RANDOM%-%RANDOM%.ps1\"\n\ncurl.exe --fail --silent --show-error --location --connect-timeout 30 --speed-limit 1024 --speed-time 30 %CURL_PROTOCOL...",
+  "timestamp": "2026-11-27T01:24:21.785Z",
+  "retry_count": 1
+}

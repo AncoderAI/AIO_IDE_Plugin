@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd workbench/service && echo \\\"--- service head ---\\\" && sed -n '1,80p' workbench-service.cjs && echo \\\"--- main/stdin loop ---\\\" && grep -n \\\"readline\\\\|process.stdin\\\\|JSON.parse(line)\\\\...",
+  "error": "Exit code 1\n/usr/bin/bash: line 1: cd: workbench/service: No such file or directory",
+  "timestamp": "2026-11-27T01:16:31.866Z",
+  "retry_count": 1
+}
