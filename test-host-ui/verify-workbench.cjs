@@ -64,7 +64,7 @@ async function main() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aio-webview-'));
   const project = path.join(root, 'project');
   const importedProject = path.join(root, '导入 项目');
-  const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1' || process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1';
+  const clipboardTest = process.env.AIO_TEST_CLIPBOARD === '1' || process.env.AIO_TEST_WORKBENCH_CLIPBOARD === '1' || process.env.AIO_TEST_OMP_SELECTION === '1';
   await fs.mkdir(project);
   await fs.mkdir(importedProject);
   for (const file of ['first.txt', 'second.txt']) await fs.writeFile(path.join(project, file), file);
@@ -94,6 +94,11 @@ async function main() {
     }
     const env = { ...process.env, AIO_TEST_PROJECT_IMPORT_PATH: importedProject };
     delete env.ELECTRON_RUN_AS_NODE;
+    if (process.env.AIO_TEST_OMP_SELECTION === '1') {
+      const fixture = await require('./verify-workbench-clipboard.cjs').compileClaudeFixture(project);
+      env.OMP_BINARY = path.join(project, 'omp.exe');
+      await fs.copyFile(fixture, env.OMP_BINARY);
+    }
     if (process.env.AIO_TEST_CODEX_SUBMISSION_EXE) {
       codexFixture = await require('./verify-codex-submission.cjs').createCodexFixture(
         path.join(root, 'c'), project, process.env.AIO_TEST_CODEX_SUBMISSION_EXE, env);
@@ -161,6 +166,10 @@ async function main() {
         assert.deepEqual(report.plugins, ['omp', 'claude', 'codex']);
         if (!report.projects.includes('project')) continue;
         assert.deepEqual(report.worktrees, []);
+        if (process.env.AIO_TEST_OMP_SELECTION === '1') {
+          console.log(await require('./verify-workbench-clipboard.cjs').verifyOmpSelection(window, frame, app));
+          return;
+        }
         if (process.env.AIO_TEST_BOT_UI === '1') {
           console.log(await require('./verify-bot-ui.cjs').verifyBotUi(window, frame, project));
           return;

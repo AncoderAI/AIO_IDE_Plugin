@@ -22,6 +22,21 @@ body:has(.app-shell) {
   margin-right: clamp(9px, 2vw, 24px);
 }
 
+/* Keep the terminal selection badge out of the layout. Growing the composer
+   during mouse selection resizes xterm, which can clear the selection. */
+.composer > .composer-attachments:has(> .composer-attachment--terminal:only-child) {
+  position: absolute;
+  z-index: 49;
+  bottom: calc(100% + 4px);
+  left: 6px;
+  max-width: calc(100% - 12px);
+  padding: 0;
+}
+
+.composer:has(> .composer-attachments > .composer-attachment--terminal:only-child) > .composer-terminal-selection {
+  bottom: calc(100% + 36px);
+}
+
 /* A child page owns the entire content column. The CLI and draft remain
    mounted for Back, but do not claim any rows of the active page. */
 .app-shell .conversation-column:has(> .workbench-page) {
