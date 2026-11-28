@@ -129,6 +129,9 @@ async function main() {
       const groups = await groupReport(window);
       return groups.length === 2 && groups[0].width > 100;
     }, 'button hover to create a preview on demand');
+    const split = await groupReport(window);
+    assert.deepEqual(split[0].tabs, [], 'A new preview group must not contain another AIO tab.');
+    assert.equal(split.flatMap(group => group.tabs).filter(tab => /AIO (工作台|Workbench)/i.test(tab)).length, 1);
     await surface.locator('.title-toolbar__identity').hover();
     await waitFor(async () => {
       const groups = await groupReport(window);
@@ -149,6 +152,7 @@ async function main() {
     const report = await groupReport(window);
     assert.equal(report[0].tabs.some(tab => tab.includes(filename)), true);
     assert.equal(report[1].tabs.some(tab => /AIO (工作台|Workbench)/i.test(tab)), true);
+    assert.equal(report.flatMap(group => group.tabs).filter(tab => /AIO (工作台|Workbench)/i.test(tab)).length, 1);
     process.stdout.write(JSON.stringify({ startupGroups: 1, fileAndAioGroups: 2, restoredEmptyGroups: 0 }) + '\n');
   } finally {
     await app?.close().catch(() => undefined);

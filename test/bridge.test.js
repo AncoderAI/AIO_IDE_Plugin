@@ -570,3 +570,25 @@ test('the host batches terminal output independently per tab and flushes before 
   assert.equal(sent.length, 2)
   host.dispose()
 })
+
+test('preview focuses the existing AIO group without opening its webview in the new group', async () => {
+  const calls = []
+  const vscode = {
+    commands: { executeCommand: async command => calls.push(command) },
+    window: { tabGroups: { all: [{}] }, createOutputChannel: () => ({ dispose() {} }) },
+  }
+  const previewGroupController = {
+    managed: false,
+    attach: async () => calls.push('attach'),
+    showFromTrigger: async () => calls.push('show'),
+    close: async () => {},
+    dispose: async () => {},
+  }
+  const host = new WorkbenchHost(vscode, {}, { previewGroupController })
+  const panel = { reveal: () => assert.fail('preview must not reveal the webview into another editor group') }
+  host.panel = panel
+  await host.revealFilePreview(panel)
+  assert.deepEqual(calls, ['workbench.action.newGroupLeft', 'workbench.action.focusLastEditorGroup', 'attach', 'show'])
+  host.close(panel)
+  host.dispose()
+})

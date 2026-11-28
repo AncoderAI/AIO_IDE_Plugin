@@ -415,7 +415,7 @@ class WorkbenchHost {
     const folder = resource?.scheme === 'file' ? resource.fsPath : undefined
     if (folder && !this.openFolders.includes(folder)) this.openFolders.push(folder)
     if (this.panel) {
-      this.panel.reveal()
+      this.panel.reveal(this.panel.viewColumn)
       if (folder) this.postEvent('desktop-event', { event: 'app:open-folder', payload: null })
       return this.panel
     }
@@ -470,7 +470,7 @@ class WorkbenchHost {
     let queue = Promise.resolve()
     let lastMove
     const correct = async () => {
-      if (this.panel !== panel || !panel.viewColumn) return
+      if (this.panel !== panel || this.previewOpening || !panel.viewColumn) return
       const groups = tabs.all
       const count = groups.length
       if (count === 1 && groups[0].tabs?.length > 1) {
@@ -487,7 +487,7 @@ class WorkbenchHost {
       if (count === 2 && column === count && this.previewReadyPanels.has(panel) && !this.previewGroup.managed && !this.previewGroup.abandoned) {
         await this.previewGroup.attach(panel)
       }
-      if (!column || column >= count || this.panel !== panel) {
+      if (!column || column >= count || this.panel !== panel || this.previewOpening) {
         lastMove = undefined
         return
       }
@@ -607,10 +607,11 @@ class WorkbenchHost {
   async revealFilePreview(panel) {
     const tabs = this.vscode.window.tabGroups
     if (tabs?.all.length === 1) {
-      panel.reveal(panel.viewColumn)
       await this.vscode.commands.executeCommand('workbench.action.newGroupLeft')
       if (this.panel !== panel) return
-      panel.reveal()
+      // The new preview group is active. Focus the existing right-hand group
+      // without opening the webview into whichever group VS Code just activated.
+      await this.vscode.commands.executeCommand('workbench.action.focusLastEditorGroup')
     }
     if (!this.previewGroup.managed) await this.previewGroup.attach(panel)
     if (this.panel === panel) await this.previewGroup.showFromTrigger()
